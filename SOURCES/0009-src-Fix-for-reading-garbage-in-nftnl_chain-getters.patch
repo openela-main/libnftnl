@@ -1,0 +1,57 @@
+From 6854ec003b42cf02d4b40c0942d49ede9f6d94c0 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 19 Feb 2020 12:00:31 +0100
+Subject: [PATCH] src: Fix for reading garbage in nftnl_chain getters
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1758673
+Upstream Status: libnftnl commit 629ee38dca486
+
+commit 629ee38dca48651bc8c0eedf2f3a0066a6c0aa5b
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Feb 14 18:20:29 2020 +0100
+
+    src: Fix for reading garbage in nftnl_chain getters
+
+    In {s,u}{32,64} type getters nftnl_assert() is called to make sure
+    returned data length matches expectations. Therefore all attributes must
+    set data_len, which NFTNL_CHAIN_DEVICES didn't.
+
+    While being at it, do the same change for NFTNL_FLOWTABLE_DEVICES as
+    well to make code a bit more consistent although the problem was fixed
+    for flowtables with commit f8eed54150fd4 ("flowtable: Fix for reading
+    garbage") already (but in the other direction).
+
+    Fixes: e3ac19b5ec162 ("chain: multi-device support")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ src/chain.c     | 1 +
+ src/flowtable.c | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/src/chain.c b/src/chain.c
+index b9a16fc..6e90763 100644
+--- a/src/chain.c
++++ b/src/chain.c
+@@ -365,6 +365,7 @@ const void *nftnl_chain_get_data(const struct nftnl_chain *c, uint16_t attr,
+ 		*data_len = strlen(c->dev) + 1;
+ 		return c->dev;
+ 	case NFTNL_CHAIN_DEVICES:
++		*data_len = 0;
+ 		return &c->dev_array[0];
+ 	}
+ 	return NULL;
+diff --git a/src/flowtable.c b/src/flowtable.c
+index 9ba3b6d..bf3e443 100644
+--- a/src/flowtable.c
++++ b/src/flowtable.c
+@@ -231,6 +231,7 @@ const void *nftnl_flowtable_get_data(const struct nftnl_flowtable *c,
+ 		*data_len = sizeof(int32_t);
+ 		return &c->family;
+ 	case NFTNL_FLOWTABLE_DEVICES:
++		*data_len = 0;
+ 		return &c->dev_array[0];
+ 	case NFTNL_FLOWTABLE_SIZE:
+ 		*data_len = sizeof(int32_t);
+-- 
+1.8.3.1
+
