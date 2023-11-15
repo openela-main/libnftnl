@@ -1,0 +1,47 @@
+From 7255af8a844a1444d59023500d176c8c2fff7a62 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 28 Jun 2023 15:41:05 +0200
+Subject: [PATCH] libnftnl.map: Restore custom LIBNFTNL_RHEL_14 version
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2211096
+Upstream Status: RHEL-only
+
+Avoid breaking old binaries. Keep the custom version name exporting
+symbol nftnl_set_elem_nlmsg_build upstream exported in LIBNFTNL_17.
+---
+ src/libnftnl.map | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/libnftnl.map b/src/libnftnl.map
+index ad8f2af060aef..26701c2984296 100644
+--- a/src/libnftnl.map
++++ b/src/libnftnl.map
+@@ -360,6 +360,10 @@ LIBNFTNL_13 {
+   nftnl_flowtable_set_data;
+ } LIBNFTNL_12;
+ 
++LIBNFTNL_RHEL_14 {
++  nftnl_set_elem_nlmsg_build;
++} LIBNFTNL_13;
++
+ LIBNFTNL_14 {
+   nftnl_udata_nest_start;
+   nftnl_udata_nest_end;
+@@ -367,7 +371,7 @@ LIBNFTNL_14 {
+   nftnl_chain_get_array;
+   nftnl_flowtable_set_array;
+   nftnl_flowtable_get_array;
+-} LIBNFTNL_13;
++} LIBNFTNL_RHEL_14;
+ 
+ LIBNFTNL_15 {
+   nftnl_obj_get_data;
+@@ -385,5 +389,4 @@ LIBNFTNL_16 {
+ } LIBNFTNL_15;
+ 
+ LIBNFTNL_17 {
+-  nftnl_set_elem_nlmsg_build;
+ } LIBNFTNL_16;
+-- 
+2.40.0
+
