@@ -1,0 +1,47 @@
+From 719810aeae4bf7a5c99bb6090070e769954d2e01 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Thu, 13 Jan 2022 20:10:27 +0100
+Subject: [PATCH] expr: dynset: release stateful expression from .free path
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=2040478
+Upstream Status: libnftnl commit 0bd7d62c450c6
+
+commit 0bd7d62c450c6736af4141d37073c5b40f1f894d
+Author: Pablo Neira Ayuso <pablo@netfilter.org>
+Date:   Wed May 6 20:45:35 2020 +0200
+
+    expr: dynset: release stateful expression from .free path
+
+    ==22778==ERROR: LeakSanitizer: detected memory leaks
+
+    Direct leak of 64 byte(s) in 1 object(s) allocated from:
+        #0 0x7f3212406518 in calloc (/usr/lib/x86_64-linux-gnu/libasan.so.5+0xe9518)
+        #1 0x7f321041703e in nftnl_expr_alloc /home/pablo/devel/scm/git-netfilter/libnftnl/src/expr.c:37
+        #2 0x7f3211d51c16 in netlink_gen_limit_stmt /home/pablo/devel/scm/git-netfilter/nftables/src/netlink_linearize.c:859
+        #3 0x7f3211d5220c in netlink_gen_stmt_stateful /home/pablo/devel/scm/git-netfilter/nftables/src/netlink_linearize.c:891
+        #4 0x7f3211d58630 in netlink_gen_meter_stmt /home/pablo/devel/scm/git-netfilter/nftables/src/netlink_linearize.c:1441
+    [...]
+
+    SUMMARY: AddressSanitizer: 64 byte(s) leaked in 1 allocation(s).
+
+    Signed-off-by: Pablo Neira Ayuso <pablo@netfilter.org>
+---
+ src/expr/dynset.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/expr/dynset.c b/src/expr/dynset.c
+index 4870923..466dfff 100644
+--- a/src/expr/dynset.c
++++ b/src/expr/dynset.c
+@@ -278,6 +278,8 @@ static void nftnl_expr_dynset_free(const struct nftnl_expr *e)
+ 	struct nftnl_expr_dynset *dynset = nftnl_expr_data(e);
+ 
+ 	xfree(dynset->set_name);
++	if (dynset->expr)
++		nftnl_expr_free(dynset->expr);
+ }
+ 
+ struct expr_ops expr_ops_dynset = {
+-- 
+2.31.1
+
