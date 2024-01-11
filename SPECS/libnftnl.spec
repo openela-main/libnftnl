@@ -1,5 +1,5 @@
-%define rpmversion 1.1.5
-%define specrelease 5
+%define rpmversion 1.2.2
+%define specrelease 3
 
 Name:           libnftnl
 Version:        %{rpmversion}
@@ -12,18 +12,8 @@ BuildRequires:  autoconf
 BuildRequires:  automake
 BuildRequires:  libtool
 BuildRequires:  libmnl-devel
-Patch0:             0001-tests-flowtable-Don-t-check-NFTNL_FLOWTABLE_SIZE.patch
-Patch1:             0002-flowtable-Fix-memleak-in-error-path-of-nftnl_flowtab.patch
-Patch2:             0003-chain-Fix-memleak-in-error-path-of-nftnl_chain_parse.patch
-Patch3:             0004-flowtable-Correctly-check-realloc-call.patch
-Patch4:             0005-chain-Correctly-check-realloc-call.patch
-Patch5:             0006-include-resync-nf_tables.h-cache-copy.patch
-Patch6:             0007-set-Add-support-for-NFTA_SET_DESC_CONCAT-attributes.patch
-Patch7:             0008-set_elem-Introduce-support-for-NFTNL_SET_ELEM_KEY_EN.patch
-Patch8:             0009-src-Fix-for-reading-garbage-in-nftnl_chain-getters.patch
-Patch9:             0010-set_elem-missing-set-and-build-for-NFTNL_SET_ELEM_EX.patch
-Patch10:            0011-expr-dynset-release-stateful-expression-from-.free-p.patch
-Patch11:            0012-set-expose-nftnl_set_elem_nlmsg_build.patch
+
+Patch0001: 0001-libnftnl.map-Restore-custom-LIBNFTNL_RHEL_14-version.patch
 
 %description
 A library for low-level interaction with nftables Netlink's API over libmnl.
@@ -70,6 +60,15 @@ find $RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 %{_includedir}/libnftnl
 
 %changelog
+* Wed Jun 28 2023 Phil Sutter <psutter@redhat.com> [1.2.2-3.el8]
+- Export nftnl_set_elem_nlmsg_build symbol in the right version
+
+* Wed Jun 28 2023 Phil Sutter <psutter@redhat.com> [1.2.2-2.el8]
+- libnftnl.map: Restore custom LIBNFTNL_RHEL_14 version (Phil Sutter) [2211096]
+
+* Tue May 30 2023 Phil Sutter <psutter@redhat.com> [1.2.2-1.el8]
+- Rebase onto version 1.2.2 (Phil Sutter) [2211096]
+
 * Fri Jan 21 2022 Phil Sutter <psutter@redhat.com> [1.1.5-5.el8]
 - set: expose nftnl_set_elem_nlmsg_build() (Phil Sutter) [2040754]
 - expr: dynset: release stateful expression from .free path (Phil Sutter) [2040478]
