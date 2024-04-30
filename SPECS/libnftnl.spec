@@ -1,20 +1,21 @@
-Name:           libnftnl
-Version:        1.2.2
-Release:        1%{?dist}
-Summary:        Library for low-level interaction with nftables Netlink's API over libmnl
+%define libnftnl_rpmversion 1.2.6
+%define libnftnl_specrelease 2
 
+Name:           libnftnl
+Version:        %{libnftnl_rpmversion}
+Release:        %{libnftnl_specrelease}%{?dist}%{?buildid}
+Summary:        Library for low-level interaction with nftables Netlink's API over libmnl
 License:        GPLv2+
 URL:            https://netfilter.org/projects/libnftnl/
-Source0:        https://www.netfilter.org/pub/libnftnl/libnftnl-%{version}.tar.bz2
+Source0:        %{url}/files/%{name}-%{version}.tar.xz
+
+Patch1:             0001-set-Do-not-leave-free-d-expr_list-elements-in-place.patch
 
 BuildRequires:  libmnl-devel
-BuildRequires:  jansson-devel
 BuildRequires:  gcc
 BuildRequires:  make
-
-# replace old libnftables package
-Provides: libnftables = %{version}-%{release}
-Obsoletes: libnftables < 0-0.6
+#BuildRequires:  autoconf
+#BuildRequires:  automake
 
 %description
 A library for low-level interaction with nftables Netlink's API over libmnl.
@@ -22,9 +23,6 @@ A library for low-level interaction with nftables Netlink's API over libmnl.
 %package        devel
 Summary:        Development files for %{name}
 Requires:       %{name}%{_isa} = %{version}-%{release}
-# replace old libnftables-devel package
-Provides: libnftables-devel = %{version}-%{release}
-Obsoletes: libnftables-devel < 0-0.6
 
 %description    devel
 The %{name}-devel package contains libraries and header files for
@@ -34,15 +32,17 @@ developing applications that use %{name}.
 %autosetup -p1
 
 %build
-%configure --disable-static --disable-silent-rules --with-json-parsing
+# This is what autogen.sh (only in git repo) does - without it, patches changing
+# Makefile.am cause the build system to regenerate Makefile.in and trying to use
+# automake-1.14 for that which is not available in RHEL.
+#autoreconf -fi
+#rm -rf autom4te*.cache
+
+%configure --disable-static --disable-silent-rules
 %make_build
 
 %check
 %make_build check
-# JSON parsing is broken on big endian, causing tests to fail. Fixes awaiting
-# upstream acceptance: https://marc.info/?l=netfilter-devel&m=152968610931720&w=2
-#cd tests
-#sh ./test-script.sh
 
 %install
 %make_install
@@ -58,6 +58,13 @@ find $RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 %{_includedir}/libnftnl
 
 %changelog
+* Fri Oct 27 2023 Phil Sutter <psutter@redhat.com> [1.2.6-2.el9]
+- spec: Avoid variable name clash, add missing dist tag (Phil Sutter) [RHEL-14149]
+
+* Thu Oct 26 2023 Phil Sutter <psutter@redhat.com> [1.2.6-1.el9]
+- set: Do not leave free'd expr_list elements in place (Phil Sutter) [RHEL-14149]
+- Rebase onto version 1.2.6 (Phil Sutter) [RHEL-14149]
+
 * Tue Jun 07 2022 Phil Sutter <psutter@redhat.com> - 1.2.2-1
 - New version 1.2.2
 
