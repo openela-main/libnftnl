@@ -1,0 +1,34 @@
+From 63318c4320c8ad0670409cbabc7e97b05f85add4 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 8 May 2024 22:39:40 +0200
+Subject: [PATCH] table: Validate NFTNL_TABLE_OWNER, too
+
+JIRA: https://issues.redhat.com/browse/RHEL-28515
+Upstream Status: libnftnl commit 08c9cab3352402c1a7d7952d1a2ce0a051f48b14
+
+commit 08c9cab3352402c1a7d7952d1a2ce0a051f48b14
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Mar 14 17:30:30 2024 +0100
+
+    table: Validate NFTNL_TABLE_OWNER, too
+
+    Fixes: 985955fe41f53 ("table: add table owner support")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/table.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/table.c b/src/table.c
+index 4a439ff..4f48e8c 100644
+--- a/src/table.c
++++ b/src/table.c
+@@ -89,6 +89,7 @@ static uint32_t nftnl_table_validate[NFTNL_TABLE_MAX + 1] = {
+ 	[NFTNL_TABLE_FAMILY]	= sizeof(uint32_t),
+ 	[NFTNL_TABLE_HANDLE]	= sizeof(uint64_t),
+ 	[NFTNL_TABLE_USE]	= sizeof(uint32_t),
++	[NFTNL_TABLE_OWNER]	= sizeof(uint32_t),
+ };
+ 
+ EXPORT_SYMBOL(nftnl_table_set_data);

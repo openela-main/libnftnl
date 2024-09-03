@@ -1,0 +1,34 @@
+From e0cfd83bb9e083dcb81cb1b94f8b5de5c5eb5a4d Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 8 May 2024 22:39:40 +0200
+Subject: [PATCH] flowtable: Validate NFTNL_FLOWTABLE_SIZE, too
+
+JIRA: https://issues.redhat.com/browse/RHEL-28515
+Upstream Status: libnftnl commit b8a502b359221c6fb9c35618550364e2ebf116fb
+
+commit b8a502b359221c6fb9c35618550364e2ebf116fb
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Mar 14 17:26:33 2024 +0100
+
+    flowtable: Validate NFTNL_FLOWTABLE_SIZE, too
+
+    Fixes: cdaea7f1ced05 ("flowtable: allow to specify size")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/flowtable.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/flowtable.c b/src/flowtable.c
+index e6c2475..2f37cd4 100644
+--- a/src/flowtable.c
++++ b/src/flowtable.c
+@@ -102,6 +102,7 @@ static uint32_t nftnl_flowtable_validate[NFTNL_FLOWTABLE_MAX + 1] = {
+ 	[NFTNL_FLOWTABLE_HOOKNUM]	= sizeof(uint32_t),
+ 	[NFTNL_FLOWTABLE_PRIO]		= sizeof(int32_t),
+ 	[NFTNL_FLOWTABLE_FAMILY]	= sizeof(uint32_t),
++	[NFTNL_FLOWTABLE_SIZE]		= sizeof(uint32_t),
+ 	[NFTNL_FLOWTABLE_FLAGS]		= sizeof(uint32_t),
+ 	[NFTNL_FLOWTABLE_HANDLE]	= sizeof(uint64_t),
+ };

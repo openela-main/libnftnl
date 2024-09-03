@@ -1,0 +1,34 @@
+From aff3c03195ad34f4bc8d59ab031cd3ad5ba18f1b Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 8 May 2024 22:39:40 +0200
+Subject: [PATCH] table: Validate NFTNL_TABLE_USE, too
+
+JIRA: https://issues.redhat.com/browse/RHEL-28515
+Upstream Status: libnftnl commit 8d3ed0716c619213916140e1ea42945f5202ea5c
+
+commit 8d3ed0716c619213916140e1ea42945f5202ea5c
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Mar 14 17:25:05 2024 +0100
+
+    table: Validate NFTNL_TABLE_USE, too
+
+    Fixes: 53c0ff324598c ("src: add nft_*_attr_{set|get}_data interface")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/table.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/table.c b/src/table.c
+index 59e7053..4a439ff 100644
+--- a/src/table.c
++++ b/src/table.c
+@@ -88,6 +88,7 @@ static uint32_t nftnl_table_validate[NFTNL_TABLE_MAX + 1] = {
+ 	[NFTNL_TABLE_FLAGS]	= sizeof(uint32_t),
+ 	[NFTNL_TABLE_FAMILY]	= sizeof(uint32_t),
+ 	[NFTNL_TABLE_HANDLE]	= sizeof(uint64_t),
++	[NFTNL_TABLE_USE]	= sizeof(uint32_t),
+ };
+ 
+ EXPORT_SYMBOL(nftnl_table_set_data);

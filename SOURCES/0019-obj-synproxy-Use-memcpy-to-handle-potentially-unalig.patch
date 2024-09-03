@@ -1,0 +1,47 @@
+From 1b3d689b39b1a43038c8872d80154ae1554304ca Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 8 May 2024 22:39:40 +0200
+Subject: [PATCH] obj: synproxy: Use memcpy() to handle potentially unaligned
+ data
+
+JIRA: https://issues.redhat.com/browse/RHEL-28515
+Upstream Status: libnftnl commit 721fe5702591d94b6dde1a2cc368986fb70626a8
+
+commit 721fe5702591d94b6dde1a2cc368986fb70626a8
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Mar 7 14:16:05 2024 +0100
+
+    obj: synproxy: Use memcpy() to handle potentially unaligned data
+
+    Analogous to commit dc240913458d5 ("src: Use memcpy() to handle
+    potentially unaligned data").
+
+    Fixes: 609a13fc2999e ("src: synproxy stateful object support")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/obj/synproxy.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/obj/synproxy.c b/src/obj/synproxy.c
+index baef5c2..4ef97ec 100644
+--- a/src/obj/synproxy.c
++++ b/src/obj/synproxy.c
+@@ -19,13 +19,13 @@ static int nftnl_obj_synproxy_set(struct nftnl_obj *e, uint16_t type,
+ 
+ 	switch (type) {
+ 	case NFTNL_OBJ_SYNPROXY_MSS:
+-		synproxy->mss = *((uint16_t *)data);
++		memcpy(&synproxy->mss, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_SYNPROXY_WSCALE:
+-		synproxy->wscale = *((uint8_t *)data);
++		memcpy(&synproxy->wscale, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_SYNPROXY_FLAGS:
+-		synproxy->flags = *((uint32_t *)data);
++		memcpy(&synproxy->flags, data, data_len);
+ 		break;
+ 	default:
+ 		return -1;

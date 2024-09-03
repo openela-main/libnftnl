@@ -1,0 +1,234 @@
+From a75cd0ecf866513625346ddfcedb366af91e6f03 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 8 May 2024 22:39:41 +0200
+Subject: [PATCH] obj: Respect data_len when setting attributes
+
+JIRA: https://issues.redhat.com/browse/RHEL-28515
+Upstream Status: libnftnl commit c48ac8cba8716a8bc4ff713ee965eee2643cfc31
+
+commit c48ac8cba8716a8bc4ff713ee965eee2643cfc31
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Mar 7 14:34:18 2024 +0100
+
+    obj: Respect data_len when setting attributes
+
+    With attr_policy in place, data_len has an upper boundary. Use it for
+    memcpy() calls to cover for caller passing data with lower size than the
+    attribute's storage.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/obj/counter.c    |  4 ++--
+ src/obj/ct_expect.c  | 10 +++++-----
+ src/obj/ct_helper.c  |  4 ++--
+ src/obj/ct_timeout.c |  4 ++--
+ src/obj/limit.c      | 10 +++++-----
+ src/obj/quota.c      |  6 +++---
+ src/obj/tunnel.c     | 32 ++++++++++++++++----------------
+ 7 files changed, 35 insertions(+), 35 deletions(-)
+
+diff --git a/src/obj/counter.c b/src/obj/counter.c
+index 44524d7..19e09ed 100644
+--- a/src/obj/counter.c
++++ b/src/obj/counter.c
+@@ -29,10 +29,10 @@ nftnl_obj_counter_set(struct nftnl_obj *e, uint16_t type,
+ 
+ 	switch(type) {
+ 	case NFTNL_OBJ_CTR_BYTES:
+-		memcpy(&ctr->bytes, data, sizeof(ctr->bytes));
++		memcpy(&ctr->bytes, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_CTR_PKTS:
+-		memcpy(&ctr->pkts, data, sizeof(ctr->pkts));
++		memcpy(&ctr->pkts, data, data_len);
+ 		break;
+ 	}
+ 	return 0;
+diff --git a/src/obj/ct_expect.c b/src/obj/ct_expect.c
+index 978af15..b4d6faa 100644
+--- a/src/obj/ct_expect.c
++++ b/src/obj/ct_expect.c
+@@ -21,19 +21,19 @@ static int nftnl_obj_ct_expect_set(struct nftnl_obj *e, uint16_t type,
+ 
+ 	switch (type) {
+ 	case NFTNL_OBJ_CT_EXPECT_L3PROTO:
+-		memcpy(&exp->l3proto, data, sizeof(exp->l3proto));
++		memcpy(&exp->l3proto, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_CT_EXPECT_L4PROTO:
+-		memcpy(&exp->l4proto, data, sizeof(exp->l4proto));
++		memcpy(&exp->l4proto, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_CT_EXPECT_DPORT:
+-		memcpy(&exp->dport, data, sizeof(exp->dport));
++		memcpy(&exp->dport, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_CT_EXPECT_TIMEOUT:
+-		memcpy(&exp->timeout, data, sizeof(exp->timeout));
++		memcpy(&exp->timeout, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_CT_EXPECT_SIZE:
+-		memcpy(&exp->size, data, sizeof(exp->size));
++		memcpy(&exp->size, data, data_len);
+ 		break;
+ 	}
+ 	return 0;
+diff --git a/src/obj/ct_helper.c b/src/obj/ct_helper.c
+index aa8e926..1feccf2 100644
+--- a/src/obj/ct_helper.c
++++ b/src/obj/ct_helper.c
+@@ -32,10 +32,10 @@ static int nftnl_obj_ct_helper_set(struct nftnl_obj *e, uint16_t type,
+ 		snprintf(helper->name, sizeof(helper->name), "%s", (const char *)data);
+ 		break;
+ 	case NFTNL_OBJ_CT_HELPER_L3PROTO:
+-		memcpy(&helper->l3proto, data, sizeof(helper->l3proto));
++		memcpy(&helper->l3proto, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_CT_HELPER_L4PROTO:
+-		memcpy(&helper->l4proto, data, sizeof(helper->l4proto));
++		memcpy(&helper->l4proto, data, data_len);
+ 		break;
+ 	}
+ 	return 0;
+diff --git a/src/obj/ct_timeout.c b/src/obj/ct_timeout.c
+index 88522d8..b9b688e 100644
+--- a/src/obj/ct_timeout.c
++++ b/src/obj/ct_timeout.c
+@@ -150,10 +150,10 @@ static int nftnl_obj_ct_timeout_set(struct nftnl_obj *e, uint16_t type,
+ 
+ 	switch (type) {
+ 	case NFTNL_OBJ_CT_TIMEOUT_L3PROTO:
+-		memcpy(&timeout->l3proto, data, sizeof(timeout->l3proto));
++		memcpy(&timeout->l3proto, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_CT_TIMEOUT_L4PROTO:
+-		memcpy(&timeout->l4proto, data, sizeof(timeout->l4proto));
++		memcpy(&timeout->l4proto, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_CT_TIMEOUT_ARRAY:
+ 		if (data_len < sizeof(uint32_t) * NFTNL_CTTIMEOUT_ARRAY_MAX)
+diff --git a/src/obj/limit.c b/src/obj/limit.c
+index 0c7362e..cbf30b4 100644
+--- a/src/obj/limit.c
++++ b/src/obj/limit.c
+@@ -28,19 +28,19 @@ static int nftnl_obj_limit_set(struct nftnl_obj *e, uint16_t type,
+ 
+ 	switch (type) {
+ 	case NFTNL_OBJ_LIMIT_RATE:
+-		memcpy(&limit->rate, data, sizeof(limit->rate));
++		memcpy(&limit->rate, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_LIMIT_UNIT:
+-		memcpy(&limit->unit, data, sizeof(limit->unit));
++		memcpy(&limit->unit, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_LIMIT_BURST:
+-		memcpy(&limit->burst, data, sizeof(limit->burst));
++		memcpy(&limit->burst, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_LIMIT_TYPE:
+-		memcpy(&limit->type, data, sizeof(limit->type));
++		memcpy(&limit->type, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_LIMIT_FLAGS:
+-		memcpy(&limit->flags, data, sizeof(limit->flags));
++		memcpy(&limit->flags, data, data_len);
+ 		break;
+ 	}
+ 	return 0;
+diff --git a/src/obj/quota.c b/src/obj/quota.c
+index b48ba91..526db8e 100644
+--- a/src/obj/quota.c
++++ b/src/obj/quota.c
+@@ -28,13 +28,13 @@ static int nftnl_obj_quota_set(struct nftnl_obj *e, uint16_t type,
+ 
+ 	switch (type) {
+ 	case NFTNL_OBJ_QUOTA_BYTES:
+-		memcpy(&quota->bytes, data, sizeof(quota->bytes));
++		memcpy(&quota->bytes, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_QUOTA_CONSUMED:
+-		memcpy(&quota->consumed, data, sizeof(quota->consumed));
++		memcpy(&quota->consumed, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_QUOTA_FLAGS:
+-		memcpy(&quota->flags, data, sizeof(quota->flags));
++		memcpy(&quota->flags, data, data_len);
+ 		break;
+ 	}
+ 	return 0;
+diff --git a/src/obj/tunnel.c b/src/obj/tunnel.c
+index 07b3b2a..0309410 100644
+--- a/src/obj/tunnel.c
++++ b/src/obj/tunnel.c
+@@ -29,52 +29,52 @@ nftnl_obj_tunnel_set(struct nftnl_obj *e, uint16_t type,
+ 
+ 	switch (type) {
+ 	case NFTNL_OBJ_TUNNEL_ID:
+-		memcpy(&tun->id, data, sizeof(tun->id));
++		memcpy(&tun->id, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_TUNNEL_IPV4_SRC:
+-		memcpy(&tun->src_v4, data, sizeof(tun->src_v4));
++		memcpy(&tun->src_v4, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_TUNNEL_IPV4_DST:
+-		memcpy(&tun->dst_v4, data, sizeof(tun->dst_v4));
++		memcpy(&tun->dst_v4, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_TUNNEL_IPV6_SRC:
+-		memcpy(&tun->src_v6, data, sizeof(struct in6_addr));
++		memcpy(&tun->src_v6, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_TUNNEL_IPV6_DST:
+-		memcpy(&tun->dst_v6, data, sizeof(struct in6_addr));
++		memcpy(&tun->dst_v6, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_TUNNEL_IPV6_FLOWLABEL:
+-		memcpy(&tun->flowlabel, data, sizeof(tun->flowlabel));
++		memcpy(&tun->flowlabel, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_TUNNEL_SPORT:
+-		memcpy(&tun->sport, data, sizeof(tun->sport));
++		memcpy(&tun->sport, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_TUNNEL_DPORT:
+-		memcpy(&tun->dport, data, sizeof(tun->dport));
++		memcpy(&tun->dport, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_TUNNEL_FLAGS:
+-		memcpy(&tun->tun_flags, data, sizeof(tun->tun_flags));
++		memcpy(&tun->tun_flags, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_TUNNEL_TOS:
+-		memcpy(&tun->tun_tos, data, sizeof(tun->tun_tos));
++		memcpy(&tun->tun_tos, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_TUNNEL_TTL:
+-		memcpy(&tun->tun_ttl, data, sizeof(tun->tun_ttl));
++		memcpy(&tun->tun_ttl, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_TUNNEL_VXLAN_GBP:
+-		memcpy(&tun->u.tun_vxlan.gbp, data, sizeof(tun->u.tun_vxlan.gbp));
++		memcpy(&tun->u.tun_vxlan.gbp, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_TUNNEL_ERSPAN_VERSION:
+-		memcpy(&tun->u.tun_erspan.version, data, sizeof(tun->u.tun_erspan.version));
++		memcpy(&tun->u.tun_erspan.version, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_TUNNEL_ERSPAN_V1_INDEX:
+-		memcpy(&tun->u.tun_erspan.u.v1_index, data, sizeof(tun->u.tun_erspan.u.v1_index));
++		memcpy(&tun->u.tun_erspan.u.v1_index, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_TUNNEL_ERSPAN_V2_HWID:
+-		memcpy(&tun->u.tun_erspan.u.v2.hwid, data, sizeof(tun->u.tun_erspan.u.v2.hwid));
++		memcpy(&tun->u.tun_erspan.u.v2.hwid, data, data_len);
+ 		break;
+ 	case NFTNL_OBJ_TUNNEL_ERSPAN_V2_DIR:
+-		memcpy(&tun->u.tun_erspan.u.v2.dir, data, sizeof(tun->u.tun_erspan.u.v2.dir));
++		memcpy(&tun->u.tun_erspan.u.v2.dir, data, data_len);
+ 		break;
+ 	}
+ 	return 0;

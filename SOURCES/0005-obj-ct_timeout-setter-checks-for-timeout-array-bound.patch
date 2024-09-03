@@ -1,0 +1,72 @@
+From ec6136e9d14c36daf6c59fc99c051ed3ac4cd0f2 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 8 May 2024 22:39:40 +0200
+Subject: [PATCH] obj: ct_timeout: setter checks for timeout array boundaries
+
+JIRA: https://issues.redhat.com/browse/RHEL-28515
+Upstream Status: libnftnl commit 7e6a10e4a57aaf72c74c21d2ed7d2be8289d0f6f
+
+commit 7e6a10e4a57aaf72c74c21d2ed7d2be8289d0f6f
+Author: Pablo Neira Ayuso <pablo@netfilter.org>
+Date:   Thu Jan 25 17:34:40 2024 +0100
+
+    obj: ct_timeout: setter checks for timeout array boundaries
+
+    Use _MAX definitions for timeout attribute arrays and check that
+    timeout array is not larger than NFTNL_CTTIMEOUT_ARRAY_MAX.
+
+    Fixes: 0adceeab1597 ("src: add ct timeout support")
+    Signed-off-by: Pablo Neira Ayuso <pablo@netfilter.org>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/obj/ct_timeout.c | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/obj/ct_timeout.c b/src/obj/ct_timeout.c
+index 65b48bd..fedf9e3 100644
+--- a/src/obj/ct_timeout.c
++++ b/src/obj/ct_timeout.c
+@@ -21,7 +21,7 @@
+ 
+ #include "obj.h"
+ 
+-static const char *const tcp_state_to_name[] = {
++static const char *const tcp_state_to_name[NFTNL_CTTIMEOUT_TCP_MAX] = {
+ 	[NFTNL_CTTIMEOUT_TCP_SYN_SENT]		= "SYN_SENT",
+ 	[NFTNL_CTTIMEOUT_TCP_SYN_RECV]		= "SYN_RECV",
+ 	[NFTNL_CTTIMEOUT_TCP_ESTABLISHED]	= "ESTABLISHED",
+@@ -35,7 +35,7 @@ static const char *const tcp_state_to_name[] = {
+ 	[NFTNL_CTTIMEOUT_TCP_UNACK]		= "UNACKNOWLEDGED",
+ };
+ 
+-static uint32_t tcp_dflt_timeout[] = {
++static uint32_t tcp_dflt_timeout[NFTNL_CTTIMEOUT_TCP_MAX] = {
+ 	[NFTNL_CTTIMEOUT_TCP_SYN_SENT]		= 120,
+ 	[NFTNL_CTTIMEOUT_TCP_SYN_RECV]		= 60,
+ 	[NFTNL_CTTIMEOUT_TCP_ESTABLISHED]	= 432000,
+@@ -49,12 +49,12 @@ static uint32_t tcp_dflt_timeout[] = {
+ 	[NFTNL_CTTIMEOUT_TCP_UNACK]		= 300,
+ };
+ 
+-static const char *const udp_state_to_name[] = {
++static const char *const udp_state_to_name[NFTNL_CTTIMEOUT_UDP_MAX] = {
+ 	[NFTNL_CTTIMEOUT_UDP_UNREPLIED]		= "UNREPLIED",
+ 	[NFTNL_CTTIMEOUT_UDP_REPLIED]		= "REPLIED",
+ };
+ 
+-static uint32_t udp_dflt_timeout[] = {
++static uint32_t udp_dflt_timeout[NFTNL_CTTIMEOUT_UDP_MAX] = {
+ 	[NFTNL_CTTIMEOUT_UDP_UNREPLIED]		= 30,
+ 	[NFTNL_CTTIMEOUT_UDP_REPLIED]		= 180,
+ };
+@@ -156,6 +156,9 @@ static int nftnl_obj_ct_timeout_set(struct nftnl_obj *e, uint16_t type,
+ 		memcpy(&timeout->l4proto, data, sizeof(timeout->l4proto));
+ 		break;
+ 	case NFTNL_OBJ_CT_TIMEOUT_ARRAY:
++		if (data_len < sizeof(uint32_t) * NFTNL_CTTIMEOUT_ARRAY_MAX)
++			return -1;
++
+ 		memcpy(timeout->timeout, data,
+ 		       sizeof(uint32_t) * NFTNL_CTTIMEOUT_ARRAY_MAX);
+ 		break;

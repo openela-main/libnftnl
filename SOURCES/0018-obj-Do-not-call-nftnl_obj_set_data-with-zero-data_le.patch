@@ -1,0 +1,38 @@
+From eaa75e076e56224f0d3946a65565a3f72503f091 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 8 May 2024 22:39:40 +0200
+Subject: [PATCH] obj: Do not call nftnl_obj_set_data() with zero data_len
+
+JIRA: https://issues.redhat.com/browse/RHEL-28515
+Upstream Status: libnftnl commit a113d1ffb6405407d98430807f3534e64a71837e
+
+commit a113d1ffb6405407d98430807f3534e64a71837e
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Mar 14 16:44:34 2024 +0100
+
+    obj: Do not call nftnl_obj_set_data() with zero data_len
+
+    Pass 'strlen() + 1' as length parameter when setting string attributes,
+    just like other string setters do.
+
+    Fixes: 5573d0146c1ae ("src: support for stateful objects")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/object.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/object.c b/src/object.c
+index f498138..e94236e 100644
+--- a/src/object.c
++++ b/src/object.c
+@@ -157,7 +157,7 @@ void nftnl_obj_set_u64(struct nftnl_obj *obj, uint16_t attr, uint64_t val)
+ EXPORT_SYMBOL(nftnl_obj_set_str);
+ void nftnl_obj_set_str(struct nftnl_obj *obj, uint16_t attr, const char *str)
+ {
+-	nftnl_obj_set_data(obj, attr, str, 0);
++	nftnl_obj_set_data(obj, attr, str, strlen(str) + 1);
+ }
+ 
+ EXPORT_SYMBOL(nftnl_obj_get_data);

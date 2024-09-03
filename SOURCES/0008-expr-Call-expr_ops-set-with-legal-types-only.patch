@@ -1,0 +1,503 @@
+From 3d5814d5b0a9344327509c9e3aa47ee067fe8a4d Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 8 May 2024 22:39:40 +0200
+Subject: [PATCH] expr: Call expr_ops::set with legal types only
+
+JIRA: https://issues.redhat.com/browse/RHEL-28515
+Upstream Status: libnftnl commit 5029136028bff1747860ed770994b8f494c042fc
+
+commit 5029136028bff1747860ed770994b8f494c042fc
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Wed Dec 13 23:49:53 2023 +0100
+
+    expr: Call expr_ops::set with legal types only
+
+    Having the new expr_ops::nftnl_max_attr field in place, the valid range
+    of attribute type values is known now. Reject illegal ones upfront.
+
+    Consequently drop the default case from callbacks' switches which handle
+    all supported attributes.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/expr.c              | 3 +++
+ src/expr/bitwise.c      | 2 --
+ src/expr/byteorder.c    | 2 --
+ src/expr/cmp.c          | 2 --
+ src/expr/connlimit.c    | 2 --
+ src/expr/counter.c      | 2 --
+ src/expr/ct.c           | 2 --
+ src/expr/dup.c          | 2 --
+ src/expr/exthdr.c       | 2 --
+ src/expr/fib.c          | 2 --
+ src/expr/flow_offload.c | 2 --
+ src/expr/fwd.c          | 2 --
+ src/expr/immediate.c    | 2 --
+ src/expr/inner.c        | 2 --
+ src/expr/last.c         | 2 --
+ src/expr/limit.c        | 2 --
+ src/expr/log.c          | 2 --
+ src/expr/lookup.c       | 2 --
+ src/expr/masq.c         | 2 --
+ src/expr/match.c        | 2 --
+ src/expr/meta.c         | 2 --
+ src/expr/nat.c          | 2 --
+ src/expr/objref.c       | 2 --
+ src/expr/payload.c      | 2 --
+ src/expr/queue.c        | 2 --
+ src/expr/quota.c        | 2 --
+ src/expr/range.c        | 2 --
+ src/expr/redir.c        | 2 --
+ src/expr/reject.c       | 2 --
+ src/expr/rt.c           | 2 --
+ src/expr/socket.c       | 2 --
+ src/expr/target.c       | 2 --
+ src/expr/tproxy.c       | 2 --
+ src/expr/tunnel.c       | 2 --
+ 34 files changed, 3 insertions(+), 66 deletions(-)
+
+diff --git a/src/expr.c b/src/expr.c
+index b4581f1..74d211b 100644
+--- a/src/expr.c
++++ b/src/expr.c
+@@ -71,6 +71,9 @@ int nftnl_expr_set(struct nftnl_expr *expr, uint16_t type,
+ 	case NFTNL_EXPR_NAME:	/* cannot be modified */
+ 		return 0;
+ 	default:
++		if (type < NFTNL_EXPR_BASE || type > expr->ops->nftnl_max_attr)
++			return -1;
++
+ 		if (expr->ops->set(expr, type, data, data_len) < 0)
+ 			return -1;
+ 	}
+diff --git a/src/expr/bitwise.c b/src/expr/bitwise.c
+index 69efe1d..e219d49 100644
+--- a/src/expr/bitwise.c
++++ b/src/expr/bitwise.c
+@@ -56,8 +56,6 @@ nftnl_expr_bitwise_set(struct nftnl_expr *e, uint16_t type,
+ 		return nftnl_data_cpy(&bitwise->xor, data, data_len);
+ 	case NFTNL_EXPR_BITWISE_DATA:
+ 		return nftnl_data_cpy(&bitwise->data, data, data_len);
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/byteorder.c b/src/expr/byteorder.c
+index f05ae59..8c7661f 100644
+--- a/src/expr/byteorder.c
++++ b/src/expr/byteorder.c
+@@ -51,8 +51,6 @@ nftnl_expr_byteorder_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_BYTEORDER_SIZE:
+ 		memcpy(&byteorder->size, data, sizeof(byteorder->size));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/cmp.c b/src/expr/cmp.c
+index 40431fa..fe6f599 100644
+--- a/src/expr/cmp.c
++++ b/src/expr/cmp.c
+@@ -43,8 +43,6 @@ nftnl_expr_cmp_set(struct nftnl_expr *e, uint16_t type,
+ 		break;
+ 	case NFTNL_EXPR_CMP_DATA:
+ 		return nftnl_data_cpy(&cmp->data, data, data_len);
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/connlimit.c b/src/expr/connlimit.c
+index 3b6c36c..90613f2 100644
+--- a/src/expr/connlimit.c
++++ b/src/expr/connlimit.c
+@@ -38,8 +38,6 @@ nftnl_expr_connlimit_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_CONNLIMIT_FLAGS:
+ 		memcpy(&connlimit->flags, data, sizeof(connlimit->flags));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/counter.c b/src/expr/counter.c
+index 0595d50..a003e24 100644
+--- a/src/expr/counter.c
++++ b/src/expr/counter.c
+@@ -40,8 +40,6 @@ nftnl_expr_counter_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_CTR_PACKETS:
+ 		memcpy(&ctr->pkts, data, sizeof(ctr->pkts));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/ct.c b/src/expr/ct.c
+index 36b61fd..197454e 100644
+--- a/src/expr/ct.c
++++ b/src/expr/ct.c
+@@ -50,8 +50,6 @@ nftnl_expr_ct_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_CT_SREG:
+ 		memcpy(&ct->sreg, data, sizeof(ct->sreg));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/dup.c b/src/expr/dup.c
+index 33731cc..20100ab 100644
+--- a/src/expr/dup.c
++++ b/src/expr/dup.c
+@@ -37,8 +37,6 @@ static int nftnl_expr_dup_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_DUP_SREG_DEV:
+ 		memcpy(&dup->sreg_dev, data, sizeof(dup->sreg_dev));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/exthdr.c b/src/expr/exthdr.c
+index a1227a6..77ff7db 100644
+--- a/src/expr/exthdr.c
++++ b/src/expr/exthdr.c
+@@ -66,8 +66,6 @@ nftnl_expr_exthdr_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_EXTHDR_SREG:
+ 		memcpy(&exthdr->sreg, data, sizeof(exthdr->sreg));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/fib.c b/src/expr/fib.c
+index 36637bd..5d2303f 100644
+--- a/src/expr/fib.c
++++ b/src/expr/fib.c
+@@ -43,8 +43,6 @@ nftnl_expr_fib_set(struct nftnl_expr *e, uint16_t result,
+ 	case NFTNL_EXPR_FIB_FLAGS:
+ 		memcpy(&fib->flags, data, sizeof(fib->flags));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/flow_offload.c b/src/expr/flow_offload.c
+index f604712..9ab068d 100644
+--- a/src/expr/flow_offload.c
++++ b/src/expr/flow_offload.c
+@@ -25,8 +25,6 @@ static int nftnl_expr_flow_set(struct nftnl_expr *e, uint16_t type,
+ 		if (!flow->table_name)
+ 			return -1;
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/fwd.c b/src/expr/fwd.c
+index 3aaf328..bd1b1d8 100644
+--- a/src/expr/fwd.c
++++ b/src/expr/fwd.c
+@@ -41,8 +41,6 @@ static int nftnl_expr_fwd_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_FWD_NFPROTO:
+ 		memcpy(&fwd->nfproto, data, sizeof(fwd->nfproto));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/immediate.c b/src/expr/immediate.c
+index d60ca32..6ab8417 100644
+--- a/src/expr/immediate.c
++++ b/src/expr/immediate.c
+@@ -51,8 +51,6 @@ nftnl_expr_immediate_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_IMM_CHAIN_ID:
+ 		memcpy(&imm->data.chain_id, data, sizeof(uint32_t));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/inner.c b/src/expr/inner.c
+index cb6f607..515f68d 100644
+--- a/src/expr/inner.c
++++ b/src/expr/inner.c
+@@ -59,8 +59,6 @@ nftnl_expr_inner_set(struct nftnl_expr *e, uint16_t type,
+ 
+ 		inner->expr = (void *)data;
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/last.c b/src/expr/last.c
+index 273aaa1..8aa772c 100644
+--- a/src/expr/last.c
++++ b/src/expr/last.c
+@@ -37,8 +37,6 @@ static int nftnl_expr_last_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_LAST_SET:
+ 		memcpy(&last->set, data, sizeof(last->set));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/limit.c b/src/expr/limit.c
+index a1f9eac..355d46a 100644
+--- a/src/expr/limit.c
++++ b/src/expr/limit.c
+@@ -52,8 +52,6 @@ nftnl_expr_limit_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_LIMIT_FLAGS:
+ 		memcpy(&limit->flags, data, sizeof(limit->flags));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/log.c b/src/expr/log.c
+index 6df030d..868da61 100644
+--- a/src/expr/log.c
++++ b/src/expr/log.c
+@@ -60,8 +60,6 @@ static int nftnl_expr_log_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_LOG_FLAGS:
+ 		memcpy(&log->flags, data, sizeof(log->flags));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/lookup.c b/src/expr/lookup.c
+index 8b23081..ca58a38 100644
+--- a/src/expr/lookup.c
++++ b/src/expr/lookup.c
+@@ -53,8 +53,6 @@ nftnl_expr_lookup_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_LOOKUP_FLAGS:
+ 		memcpy(&lookup->flags, data, sizeof(lookup->flags));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/masq.c b/src/expr/masq.c
+index a103cc3..fa2f4af 100644
+--- a/src/expr/masq.c
++++ b/src/expr/masq.c
+@@ -42,8 +42,6 @@ nftnl_expr_masq_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_MASQ_REG_PROTO_MAX:
+ 		memcpy(&masq->sreg_proto_max, data, sizeof(masq->sreg_proto_max));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/match.c b/src/expr/match.c
+index eed85db..16e7367 100644
+--- a/src/expr/match.c
++++ b/src/expr/match.c
+@@ -55,8 +55,6 @@ nftnl_expr_match_set(struct nftnl_expr *e, uint16_t type,
+ 		mt->data = data;
+ 		mt->data_len = data_len;
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/meta.c b/src/expr/meta.c
+index f86fdff..1db2c19 100644
+--- a/src/expr/meta.c
++++ b/src/expr/meta.c
+@@ -47,8 +47,6 @@ nftnl_expr_meta_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_META_SREG:
+ 		memcpy(&meta->sreg, data, sizeof(meta->sreg));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/nat.c b/src/expr/nat.c
+index 1d10bc1..724894a 100644
+--- a/src/expr/nat.c
++++ b/src/expr/nat.c
+@@ -62,8 +62,6 @@ nftnl_expr_nat_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_NAT_FLAGS:
+ 		memcpy(&nat->flags, data, sizeof(nat->flags));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 
+ 	return 0;
+diff --git a/src/expr/objref.c b/src/expr/objref.c
+index e96bd69..28cd2cc 100644
+--- a/src/expr/objref.c
++++ b/src/expr/objref.c
+@@ -57,8 +57,6 @@ static int nftnl_expr_objref_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_OBJREF_SET_ID:
+ 		memcpy(&objref->set.id, data, sizeof(objref->set.id));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/payload.c b/src/expr/payload.c
+index f603662..73cb188 100644
+--- a/src/expr/payload.c
++++ b/src/expr/payload.c
+@@ -66,8 +66,6 @@ nftnl_expr_payload_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_PAYLOAD_FLAGS:
+ 		memcpy(&payload->csum_flags, data, sizeof(payload->csum_flags));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/queue.c b/src/expr/queue.c
+index fba65d1..3343dd4 100644
+--- a/src/expr/queue.c
++++ b/src/expr/queue.c
+@@ -45,8 +45,6 @@ static int nftnl_expr_queue_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_QUEUE_SREG_QNUM:
+ 		memcpy(&queue->sreg_qnum, data, sizeof(queue->sreg_qnum));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/quota.c b/src/expr/quota.c
+index d3923f3..2a3a05a 100644
+--- a/src/expr/quota.c
++++ b/src/expr/quota.c
+@@ -41,8 +41,6 @@ static int nftnl_expr_quota_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_QUOTA_FLAGS:
+ 		memcpy(&quota->flags, data, sizeof(quota->flags));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/range.c b/src/expr/range.c
+index cb3708c..d0c52b9 100644
+--- a/src/expr/range.c
++++ b/src/expr/range.c
+@@ -43,8 +43,6 @@ static int nftnl_expr_range_set(struct nftnl_expr *e, uint16_t type,
+ 		return nftnl_data_cpy(&range->data_from, data, data_len);
+ 	case NFTNL_EXPR_RANGE_TO_DATA:
+ 		return nftnl_data_cpy(&range->data_to, data, data_len);
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/redir.c b/src/expr/redir.c
+index eca8bfe..a5a5e7d 100644
+--- a/src/expr/redir.c
++++ b/src/expr/redir.c
+@@ -42,8 +42,6 @@ nftnl_expr_redir_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_REDIR_FLAGS:
+ 		memcpy(&redir->flags, data, sizeof(redir->flags));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/reject.c b/src/expr/reject.c
+index 6b923ad..8a0653d 100644
+--- a/src/expr/reject.c
++++ b/src/expr/reject.c
+@@ -38,8 +38,6 @@ static int nftnl_expr_reject_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_REJECT_CODE:
+ 		memcpy(&reject->icmp_code, data, sizeof(reject->icmp_code));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/rt.c b/src/expr/rt.c
+index aaec430..de2bd2f 100644
+--- a/src/expr/rt.c
++++ b/src/expr/rt.c
+@@ -37,8 +37,6 @@ nftnl_expr_rt_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_RT_DREG:
+ 		memcpy(&rt->dreg, data, sizeof(rt->dreg));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/socket.c b/src/expr/socket.c
+index ef299c4..9b6c3ea 100644
+--- a/src/expr/socket.c
++++ b/src/expr/socket.c
+@@ -41,8 +41,6 @@ nftnl_expr_socket_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_SOCKET_LEVEL:
+ 		memcpy(&socket->level, data, sizeof(socket->level));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/target.c b/src/expr/target.c
+index ebc48ba..cc0566c 100644
+--- a/src/expr/target.c
++++ b/src/expr/target.c
+@@ -55,8 +55,6 @@ nftnl_expr_target_set(struct nftnl_expr *e, uint16_t type,
+ 		tg->data = data;
+ 		tg->data_len = data_len;
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/expr/tproxy.c b/src/expr/tproxy.c
+index ac5419b..c6ed888 100644
+--- a/src/expr/tproxy.c
++++ b/src/expr/tproxy.c
+@@ -42,8 +42,6 @@ nftnl_expr_tproxy_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_TPROXY_REG_PORT:
+ 		memcpy(&tproxy->sreg_port, data, sizeof(tproxy->sreg_port));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 
+ 	return 0;
+diff --git a/src/expr/tunnel.c b/src/expr/tunnel.c
+index e381994..e59744b 100644
+--- a/src/expr/tunnel.c
++++ b/src/expr/tunnel.c
+@@ -36,8 +36,6 @@ static int nftnl_expr_tunnel_set(struct nftnl_expr *e, uint16_t type,
+ 	case NFTNL_EXPR_TUNNEL_DREG:
+ 		memcpy(&tunnel->dreg, data, sizeof(tunnel->dreg));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }

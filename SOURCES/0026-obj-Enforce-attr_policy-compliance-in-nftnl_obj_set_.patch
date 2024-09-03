@@ -1,0 +1,43 @@
+From c67dacb6c402c95eb6331a36ba1fbca1a3ee2257 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 8 May 2024 22:39:41 +0200
+Subject: [PATCH] obj: Enforce attr_policy compliance in nftnl_obj_set_data()
+
+JIRA: https://issues.redhat.com/browse/RHEL-28515
+Upstream Status: libnftnl commit 5d94baba0f43426120ce025aacaa74406659ad7f
+
+commit 5d94baba0f43426120ce025aacaa74406659ad7f
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Mar 7 13:56:14 2024 +0100
+
+    obj: Enforce attr_policy compliance in nftnl_obj_set_data()
+
+    Every object type defines an attr_policy array, so deny setting
+    attributes for object types which don't have it present or if it
+    specifies a non-zero maxlen which is lower than the given data_len.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/object.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/object.c b/src/object.c
+index 52a184e..b653732 100644
+--- a/src/object.c
++++ b/src/object.c
+@@ -123,7 +123,12 @@ int nftnl_obj_set_data(struct nftnl_obj *obj, uint16_t attr,
+ 	default:
+ 		if (!obj->ops ||
+ 		    attr < NFTNL_OBJ_BASE ||
+-		    attr > obj->ops->nftnl_max_attr)
++		    attr > obj->ops->nftnl_max_attr ||
++		    !obj->ops->attr_policy)
++			return -1;
++
++		if (obj->ops->attr_policy[attr].maxlen &&
++		    obj->ops->attr_policy[attr].maxlen < data_len)
+ 			return -1;
+ 
+ 		if (obj->ops->set(obj, attr, data, data_len) < 0)

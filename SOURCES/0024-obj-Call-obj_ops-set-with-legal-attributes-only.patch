@@ -1,0 +1,168 @@
+From 0203ccf90e6f8a246a5a071e903ab0d89acf2bad Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 8 May 2024 22:39:41 +0200
+Subject: [PATCH] obj: Call obj_ops::set with legal attributes only
+
+JIRA: https://issues.redhat.com/browse/RHEL-28515
+Upstream Status: libnftnl commit 410c245e4811d7888daa456547af58d93d1c63b4
+
+commit 410c245e4811d7888daa456547af58d93d1c63b4
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Mar 7 13:25:31 2024 +0100
+
+    obj: Call obj_ops::set with legal attributes only
+
+    Refer to obj_ops::nftnl_max_attr field value for the maximum supported
+    attribute value to reject invalid ones upfront.
+
+    Consequently drop default cases from callbacks' switches which handle
+    all supported attributes.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/obj/counter.c    | 2 --
+ src/obj/ct_expect.c  | 2 --
+ src/obj/ct_helper.c  | 2 --
+ src/obj/ct_timeout.c | 2 --
+ src/obj/limit.c      | 2 --
+ src/obj/quota.c      | 2 --
+ src/obj/secmark.c    | 2 --
+ src/obj/synproxy.c   | 2 --
+ src/obj/tunnel.c     | 2 --
+ src/object.c         | 4 +++-
+ 10 files changed, 3 insertions(+), 19 deletions(-)
+
+diff --git a/src/obj/counter.c b/src/obj/counter.c
+index 76a1b20..982da2c 100644
+--- a/src/obj/counter.c
++++ b/src/obj/counter.c
+@@ -34,8 +34,6 @@ nftnl_obj_counter_set(struct nftnl_obj *e, uint16_t type,
+ 	case NFTNL_OBJ_CTR_PKTS:
+ 		memcpy(&ctr->pkts, data, sizeof(ctr->pkts));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/obj/ct_expect.c b/src/obj/ct_expect.c
+index 7e9c5e1..60014dc 100644
+--- a/src/obj/ct_expect.c
++++ b/src/obj/ct_expect.c
+@@ -35,8 +35,6 @@ static int nftnl_obj_ct_expect_set(struct nftnl_obj *e, uint16_t type,
+ 	case NFTNL_OBJ_CT_EXPECT_SIZE:
+ 		memcpy(&exp->size, data, sizeof(exp->size));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/obj/ct_helper.c b/src/obj/ct_helper.c
+index f8aa734..b8b05fd 100644
+--- a/src/obj/ct_helper.c
++++ b/src/obj/ct_helper.c
+@@ -37,8 +37,6 @@ static int nftnl_obj_ct_helper_set(struct nftnl_obj *e, uint16_t type,
+ 	case NFTNL_OBJ_CT_HELPER_L4PROTO:
+ 		memcpy(&helper->l4proto, data, sizeof(helper->l4proto));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/obj/ct_timeout.c b/src/obj/ct_timeout.c
+index ee86231..011d928 100644
+--- a/src/obj/ct_timeout.c
++++ b/src/obj/ct_timeout.c
+@@ -162,8 +162,6 @@ static int nftnl_obj_ct_timeout_set(struct nftnl_obj *e, uint16_t type,
+ 		memcpy(timeout->timeout, data,
+ 		       sizeof(uint32_t) * NFTNL_CTTIMEOUT_ARRAY_MAX);
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/obj/limit.c b/src/obj/limit.c
+index 1c54bbc..83cb193 100644
+--- a/src/obj/limit.c
++++ b/src/obj/limit.c
+@@ -42,8 +42,6 @@ static int nftnl_obj_limit_set(struct nftnl_obj *e, uint16_t type,
+ 	case NFTNL_OBJ_LIMIT_FLAGS:
+ 		memcpy(&limit->flags, data, sizeof(limit->flags));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/obj/quota.c b/src/obj/quota.c
+index a39d552..665d7ca 100644
+--- a/src/obj/quota.c
++++ b/src/obj/quota.c
+@@ -36,8 +36,6 @@ static int nftnl_obj_quota_set(struct nftnl_obj *e, uint16_t type,
+ 	case NFTNL_OBJ_QUOTA_FLAGS:
+ 		memcpy(&quota->flags, data, sizeof(quota->flags));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/obj/secmark.c b/src/obj/secmark.c
+index c78e35f..83cd1dc 100644
+--- a/src/obj/secmark.c
++++ b/src/obj/secmark.c
+@@ -30,8 +30,6 @@ static int nftnl_obj_secmark_set(struct nftnl_obj *e, uint16_t type,
+ 	case NFTNL_OBJ_SECMARK_CTX:
+ 		snprintf(secmark->ctx, sizeof(secmark->ctx), "%s", (const char *)data);
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/obj/synproxy.c b/src/obj/synproxy.c
+index d259a51..f7c7762 100644
+--- a/src/obj/synproxy.c
++++ b/src/obj/synproxy.c
+@@ -27,8 +27,6 @@ static int nftnl_obj_synproxy_set(struct nftnl_obj *e, uint16_t type,
+ 	case NFTNL_OBJ_SYNPROXY_FLAGS:
+ 		memcpy(&synproxy->flags, data, data_len);
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/obj/tunnel.c b/src/obj/tunnel.c
+index 19a3639..72985ee 100644
+--- a/src/obj/tunnel.c
++++ b/src/obj/tunnel.c
+@@ -76,8 +76,6 @@ nftnl_obj_tunnel_set(struct nftnl_obj *e, uint16_t type,
+ 	case NFTNL_OBJ_TUNNEL_ERSPAN_V2_DIR:
+ 		memcpy(&tun->u.tun_erspan.u.v2.dir, data, sizeof(tun->u.tun_erspan.u.v2.dir));
+ 		break;
+-	default:
+-		return -1;
+ 	}
+ 	return 0;
+ }
+diff --git a/src/object.c b/src/object.c
+index 30e5ee8..52a184e 100644
+--- a/src/object.c
++++ b/src/object.c
+@@ -121,7 +121,9 @@ int nftnl_obj_set_data(struct nftnl_obj *obj, uint16_t attr,
+ 		obj->user.len = data_len;
+ 		break;
+ 	default:
+-		if (!obj->ops)
++		if (!obj->ops ||
++		    attr < NFTNL_OBJ_BASE ||
++		    attr > obj->ops->nftnl_max_attr)
+ 			return -1;
+ 
+ 		if (obj->ops->set(obj, attr, data, data_len) < 0)

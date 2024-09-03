@@ -1,0 +1,46 @@
+From 0d1d0bc545fdf355e19556153c3bb50d3bca29af Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 8 May 2024 22:39:40 +0200
+Subject: [PATCH] set: buffer overflow in NFTNL_SET_DESC_CONCAT setter
+
+JIRA: https://issues.redhat.com/browse/RHEL-28515
+Upstream Status: libnftnl commit 407f616ea53184ac3bfb9930d3f27ae1cff9c348
+
+commit 407f616ea53184ac3bfb9930d3f27ae1cff9c348
+Author: Pablo Neira Ayuso <pablo@netfilter.org>
+Date:   Thu Jan 11 01:13:37 2024 +0100
+
+    set: buffer overflow in NFTNL_SET_DESC_CONCAT setter
+
+    Allow to set a maximum limit of sizeof(s->desc.field_len) which is 16
+    bytes, otherwise, bail out. Ensure s->desc.field_count does not go over
+    the array boundary.
+
+    Fixes: 7cd41b5387ac ("set: Add support for NFTA_SET_DESC_CONCAT attributes")
+    Signed-off-by: Pablo Neira Ayuso <pablo@netfilter.org>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/set.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/set.c b/src/set.c
+index 719e596..b51ff9e 100644
+--- a/src/set.c
++++ b/src/set.c
+@@ -194,8 +194,14 @@ int nftnl_set_set_data(struct nftnl_set *s, uint16_t attr, const void *data,
+ 		memcpy(&s->desc.size, data, sizeof(s->desc.size));
+ 		break;
+ 	case NFTNL_SET_DESC_CONCAT:
++		if (data_len > sizeof(s->desc.field_len))
++			return -1;
++
+ 		memcpy(&s->desc.field_len, data, data_len);
+-		while (s->desc.field_len[++s->desc.field_count]);
++		while (s->desc.field_len[++s->desc.field_count]) {
++			if (s->desc.field_count >= NFT_REG32_COUNT)
++				break;
++		}
+ 		break;
+ 	case NFTNL_SET_TIMEOUT:
+ 		memcpy(&s->timeout, data, sizeof(s->timeout));

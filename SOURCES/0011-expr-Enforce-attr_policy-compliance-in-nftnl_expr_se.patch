@@ -1,0 +1,48 @@
+From 244e36b93c9271e3dc9d4bbce5fa395f1db7e376 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 8 May 2024 22:39:40 +0200
+Subject: [PATCH] expr: Enforce attr_policy compliance in nftnl_expr_set()
+
+JIRA: https://issues.redhat.com/browse/RHEL-28515
+Upstream Status: libnftnl commit 62db596bf1f3dabffac3e0b9b0c3db487bfff828
+
+commit 62db596bf1f3dabffac3e0b9b0c3db487bfff828
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Dec 15 16:32:30 2023 +0100
+
+    expr: Enforce attr_policy compliance in nftnl_expr_set()
+
+    Every expression type defines an attr_policy array, so deny setting
+    attributes if not present. Also deny if maxlen field is non-zero and
+    lower than the given data_len.
+
+    Some attributes' max length is not fixed (e.g. NFTNL_EXPR_{TG,MT}_INFO )
+    or is not sensible to check (e.g.  NFTNL_EXPR_DYNSET_EXPR). The zero
+    maxlen "nop" is also used for deprecated attributes, just to not
+    silently ignore them.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/expr.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/expr.c b/src/expr.c
+index 74d211b..4e32189 100644
+--- a/src/expr.c
++++ b/src/expr.c
+@@ -74,6 +74,13 @@ int nftnl_expr_set(struct nftnl_expr *expr, uint16_t type,
+ 		if (type < NFTNL_EXPR_BASE || type > expr->ops->nftnl_max_attr)
+ 			return -1;
+ 
++		if (!expr->ops->attr_policy)
++			return -1;
++
++		if (expr->ops->attr_policy[type].maxlen &&
++		    expr->ops->attr_policy[type].maxlen < data_len)
++			return -1;
++
+ 		if (expr->ops->set(expr, type, data, data_len) < 0)
+ 			return -1;
+ 	}

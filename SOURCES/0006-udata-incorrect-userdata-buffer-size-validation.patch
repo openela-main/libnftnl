@@ -1,0 +1,51 @@
+From f0cae2477f6e2292f315c1480c4a08d811dcb977 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 8 May 2024 22:39:40 +0200
+Subject: [PATCH] udata: incorrect userdata buffer size validation
+
+JIRA: https://issues.redhat.com/browse/RHEL-28515
+Upstream Status: libnftnl commit a4bcdfa6200ef1945a8f936a4474b59666c8dcca
+
+commit a4bcdfa6200ef1945a8f936a4474b59666c8dcca
+Author: Pablo Neira Ayuso <pablo@netfilter.org>
+Date:   Mon Feb 26 17:31:19 2024 +0100
+
+    udata: incorrect userdata buffer size validation
+
+    Use the current remaining space in the buffer to ensure more userdata
+    attributes still fit in, buf->size is the total size of the userdata
+    buffer.
+
+    Signed-off-by: Pablo Neira Ayuso <pablo@netfilter.org>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/udata.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/udata.c b/src/udata.c
+index 0cc3520..e9bfc35 100644
+--- a/src/udata.c
++++ b/src/udata.c
+@@ -42,6 +42,11 @@ uint32_t nftnl_udata_buf_len(const struct nftnl_udata_buf *buf)
+ 	return (uint32_t)(buf->end - buf->data);
+ }
+ 
++static uint32_t nftnl_udata_buf_space(const struct nftnl_udata_buf *buf)
++{
++	return buf->size - nftnl_udata_buf_len(buf);
++}
++
+ EXPORT_SYMBOL(nftnl_udata_buf_data);
+ void *nftnl_udata_buf_data(const struct nftnl_udata_buf *buf)
+ {
+@@ -74,7 +79,8 @@ bool nftnl_udata_put(struct nftnl_udata_buf *buf, uint8_t type, uint32_t len,
+ {
+ 	struct nftnl_udata *attr;
+ 
+-	if (len > UINT8_MAX || buf->size < len + sizeof(struct nftnl_udata))
++	if (len > UINT8_MAX ||
++	    nftnl_udata_buf_space(buf) < len + sizeof(struct nftnl_udata))
+ 		return false;
+ 
+ 	attr = (struct nftnl_udata *)buf->end;

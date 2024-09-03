@@ -1,0 +1,49 @@
+From c0bdff70b2188ee6ab9375333cdaac39abfaeb8c Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 8 May 2024 22:39:40 +0200
+Subject: [PATCH] utils: Fix for wrong variable use in nftnl_assert_validate()
+
+JIRA: https://issues.redhat.com/browse/RHEL-28515
+Upstream Status: libnftnl commit 8b9b16b3658ed035523156198798b5f29c808c78
+
+commit 8b9b16b3658ed035523156198798b5f29c808c78
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Mar 7 13:59:00 2024 +0100
+
+    utils: Fix for wrong variable use in nftnl_assert_validate()
+
+    This worked by accident as all callers passed a local variable 'attr' as
+    parameter '_attr'.
+
+    Fixes: 7756d31990cd4 ("src: add assertion infrastructure to validate attribute types")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ include/utils.h | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/include/utils.h b/include/utils.h
+index 8af5a8e..ca12d25 100644
+--- a/include/utils.h
++++ b/include/utils.h
+@@ -37,9 +37,9 @@ void __nftnl_assert_fail(uint16_t attr, const char *filename, int line);
+ #define nftnl_assert_validate(data, _validate_array, _attr, _data_len)		\
+ ({										\
+ 	if (!data)								\
+-		__nftnl_assert_fail(attr, __FILE__, __LINE__);			\
++		__nftnl_assert_fail(_attr, __FILE__, __LINE__);			\
+ 	if (_validate_array[_attr])						\
+-		nftnl_assert(data, attr, _validate_array[_attr] == _data_len);	\
++		nftnl_assert(data, _attr, _validate_array[_attr] == _data_len);	\
+ })
+ 
+ void __nftnl_assert_attr_exists(uint16_t attr, uint16_t attr_max,
+@@ -98,4 +98,7 @@ int nftnl_fprintf(FILE *fpconst, const void *obj, uint32_t cmd, uint32_t type,
+ 			  	     uint32_t cmd, uint32_t type,
+ 				     uint32_t flags));
+ 
++int nftnl_set_str_attr(const char **dptr, uint32_t *flags,
++		       uint16_t attr, const void *data, uint32_t data_len);
++
+ #endif

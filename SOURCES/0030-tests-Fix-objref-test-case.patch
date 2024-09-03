@@ -1,0 +1,38 @@
+From 9b450d7911b124884ceab1bc2df789505702d19f Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 8 May 2024 22:52:28 +0200
+Subject: [PATCH] tests: Fix objref test case
+
+JIRA: https://issues.redhat.com/browse/RHEL-28515
+Upstream Status: libnftnl commit c2982f81e0d15fb3109112945c73b93a53e21348
+
+commit c2982f81e0d15fb3109112945c73b93a53e21348
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Dec 15 16:10:49 2023 +0100
+
+    tests: Fix objref test case
+
+    Probably a c'n'p bug, the test would allocate a lookup expression
+    instead of the objref one to be tested.
+
+    Fixes: b4edb4fc558ac ("expr: add stateful object reference expression")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ tests/nft-expr_objref-test.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tests/nft-expr_objref-test.c b/tests/nft-expr_objref-test.c
+index 08e27ce..9e698df 100644
+--- a/tests/nft-expr_objref-test.c
++++ b/tests/nft-expr_objref-test.c
+@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
+ 	b = nftnl_rule_alloc();
+ 	if (a == NULL || b == NULL)
+ 		print_err("OOM");
+-	ex = nftnl_expr_alloc("lookup");
++	ex = nftnl_expr_alloc("objref");
+ 	if (ex == NULL)
+ 		print_err("OOM");
+ 

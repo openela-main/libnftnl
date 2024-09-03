@@ -1,0 +1,144 @@
+From b88949c0d64c96683e581cbefada07de4c83eff9 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 8 May 2024 22:39:40 +0200
+Subject: [PATCH] expr: fix buffer overflows in data value setters
+
+JIRA: https://issues.redhat.com/browse/RHEL-28515
+Upstream Status: libnftnl commit bc2afbde9eae491bcef23ef5b24b25c7605ad911
+
+commit bc2afbde9eae491bcef23ef5b24b25c7605ad911
+Author: Florian Westphal <fw@strlen.de>
+Date:   Tue Dec 12 15:01:17 2023 +0100
+
+    expr: fix buffer overflows in data value setters
+
+    The data value setters memcpy() to a fixed-size buffer, but its very easy
+    to make nft pass too-larger values.  Example:
+      @th,160,1272 gt 0
+
+    ERROR: AddressSanitizer: heap-buffer-overflow on address 0x60b000[..]
+
+    Truncate the copy instead of corrupting the heap.
+    This needs additional fixes on nft side to reject such statements with a
+    proper error message.
+
+    Signed-off-by: Florian Westphal <fw@strlen.de>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ include/data_reg.h   |  2 ++
+ src/expr/bitwise.c   | 12 +++---------
+ src/expr/cmp.c       |  4 +---
+ src/expr/data_reg.c  | 14 ++++++++++++++
+ src/expr/immediate.c |  4 +---
+ src/expr/range.c     |  8 ++------
+ 6 files changed, 23 insertions(+), 21 deletions(-)
+
+diff --git a/include/data_reg.h b/include/data_reg.h
+index 6d2dc66..5ee7080 100644
+--- a/include/data_reg.h
++++ b/include/data_reg.h
+@@ -37,4 +37,6 @@ struct nlattr;
+ int nftnl_parse_data(union nftnl_data_reg *data, struct nlattr *attr, int *type);
+ void nftnl_free_verdict(const union nftnl_data_reg *data);
+ 
++int nftnl_data_cpy(union nftnl_data_reg *dreg, const void *src, uint32_t len);
++
+ #endif
+diff --git a/src/expr/bitwise.c b/src/expr/bitwise.c
+index 2d27233..e5dba82 100644
+--- a/src/expr/bitwise.c
++++ b/src/expr/bitwise.c
+@@ -51,17 +51,11 @@ nftnl_expr_bitwise_set(struct nftnl_expr *e, uint16_t type,
+ 		memcpy(&bitwise->len, data, sizeof(bitwise->len));
+ 		break;
+ 	case NFTNL_EXPR_BITWISE_MASK:
+-		memcpy(&bitwise->mask.val, data, data_len);
+-		bitwise->mask.len = data_len;
+-		break;
++		return nftnl_data_cpy(&bitwise->mask, data, data_len);
+ 	case NFTNL_EXPR_BITWISE_XOR:
+-		memcpy(&bitwise->xor.val, data, data_len);
+-		bitwise->xor.len = data_len;
+-		break;
++		return nftnl_data_cpy(&bitwise->xor, data, data_len);
+ 	case NFTNL_EXPR_BITWISE_DATA:
+-		memcpy(&bitwise->data.val, data, data_len);
+-		bitwise->data.len = data_len;
+-		break;
++		return nftnl_data_cpy(&bitwise->data, data, data_len);
+ 	default:
+ 		return -1;
+ 	}
+diff --git a/src/expr/cmp.c b/src/expr/cmp.c
+index f9d15bb..1d396e8 100644
+--- a/src/expr/cmp.c
++++ b/src/expr/cmp.c
+@@ -42,9 +42,7 @@ nftnl_expr_cmp_set(struct nftnl_expr *e, uint16_t type,
+ 		memcpy(&cmp->op, data, sizeof(cmp->op));
+ 		break;
+ 	case NFTNL_EXPR_CMP_DATA:
+-		memcpy(&cmp->data.val, data, data_len);
+-		cmp->data.len = data_len;
+-		break;
++		return nftnl_data_cpy(&cmp->data, data, data_len);
+ 	default:
+ 		return -1;
+ 	}
+diff --git a/src/expr/data_reg.c b/src/expr/data_reg.c
+index 2633a77..690b23d 100644
+--- a/src/expr/data_reg.c
++++ b/src/expr/data_reg.c
+@@ -217,3 +217,17 @@ void nftnl_free_verdict(const union nftnl_data_reg *data)
+ 		break;
+ 	}
+ }
++
++int nftnl_data_cpy(union nftnl_data_reg *dreg, const void *src, uint32_t len)
++{
++	int ret = 0;
++
++	if (len > sizeof(dreg->val)) {
++		len = sizeof(dreg->val);
++		ret = -1;
++	}
++
++	memcpy(dreg->val, src, len);
++	dreg->len = len;
++	return ret;
++}
+diff --git a/src/expr/immediate.c b/src/expr/immediate.c
+index 5d477a8..f56aa8f 100644
+--- a/src/expr/immediate.c
++++ b/src/expr/immediate.c
+@@ -36,9 +36,7 @@ nftnl_expr_immediate_set(struct nftnl_expr *e, uint16_t type,
+ 		memcpy(&imm->dreg, data, sizeof(imm->dreg));
+ 		break;
+ 	case NFTNL_EXPR_IMM_DATA:
+-		memcpy(&imm->data.val, data, data_len);
+-		imm->data.len = data_len;
+-		break;
++		return nftnl_data_cpy(&imm->data, data, data_len);
+ 	case NFTNL_EXPR_IMM_VERDICT:
+ 		memcpy(&imm->data.verdict, data, sizeof(imm->data.verdict));
+ 		break;
+diff --git a/src/expr/range.c b/src/expr/range.c
+index 473add8..5a30e48 100644
+--- a/src/expr/range.c
++++ b/src/expr/range.c
+@@ -40,13 +40,9 @@ static int nftnl_expr_range_set(struct nftnl_expr *e, uint16_t type,
+ 		memcpy(&range->op, data, sizeof(range->op));
+ 		break;
+ 	case NFTNL_EXPR_RANGE_FROM_DATA:
+-		memcpy(&range->data_from.val, data, data_len);
+-		range->data_from.len = data_len;
+-		break;
++		return nftnl_data_cpy(&range->data_from, data, data_len);
+ 	case NFTNL_EXPR_RANGE_TO_DATA:
+-		memcpy(&range->data_to.val, data, data_len);
+-		range->data_to.len = data_len;
+-		break;
++		return nftnl_data_cpy(&range->data_to, data, data_len);
+ 	default:
+ 		return -1;
+ 	}

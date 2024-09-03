@@ -1,0 +1,34 @@
+From 5aca5c8f50c96303530bc7e3fdd16e20a683e1eb Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 8 May 2024 22:39:40 +0200
+Subject: [PATCH] obj: Validate NFTNL_OBJ_TYPE, too
+
+JIRA: https://issues.redhat.com/browse/RHEL-28515
+Upstream Status: libnftnl commit 899920d66b7b2a11c381a95a65b059ff12b9afd6
+
+commit 899920d66b7b2a11c381a95a65b059ff12b9afd6
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Mar 14 17:28:15 2024 +0100
+
+    obj: Validate NFTNL_OBJ_TYPE, too
+
+    Fixes: 5573d0146c1ae ("src: support for stateful objects")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/object.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/object.c b/src/object.c
+index 232b97a..f498138 100644
+--- a/src/object.c
++++ b/src/object.c
+@@ -70,6 +70,7 @@ bool nftnl_obj_is_set(const struct nftnl_obj *obj, uint16_t attr)
+ }
+ 
+ static uint32_t nftnl_obj_validate[NFTNL_OBJ_MAX + 1] = {
++	[NFTNL_OBJ_TYPE]	= sizeof(uint32_t),
+ 	[NFTNL_OBJ_FAMILY]	= sizeof(uint32_t),
+ 	[NFTNL_OBJ_USE]		= sizeof(uint32_t),
+ 	[NFTNL_OBJ_HANDLE]	= sizeof(uint64_t),

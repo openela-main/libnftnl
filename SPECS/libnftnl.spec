@@ -1,5 +1,5 @@
 %define libnftnl_rpmversion 1.2.6
-%define libnftnl_specrelease 2
+%define libnftnl_specrelease 4
 
 Name:           libnftnl
 Version:        %{libnftnl_rpmversion}
@@ -10,6 +10,35 @@ URL:            https://netfilter.org/projects/libnftnl/
 Source0:        %{url}/files/%{name}-%{version}.tar.xz
 
 Patch1:             0001-set-Do-not-leave-free-d-expr_list-elements-in-place.patch
+Patch2:             0002-expr-fix-buffer-overflows-in-data-value-setters.patch
+Patch3:             0003-set-buffer-overflow-in-NFTNL_SET_DESC_CONCAT-setter.patch
+Patch4:             0004-set_elem-use-nftnl_data_cpy-in-NFTNL_SET_ELEM_-KEY-K.patch
+Patch5:             0005-obj-ct_timeout-setter-checks-for-timeout-array-bound.patch
+Patch6:             0006-udata-incorrect-userdata-buffer-size-validation.patch
+Patch7:             0007-expr-Repurpose-struct-expr_ops-max_attr-field.patch
+Patch8:             0008-expr-Call-expr_ops-set-with-legal-types-only.patch
+Patch9:             0009-include-Sync-nf_log.h-with-kernel-headers.patch
+Patch10:            0010-expr-Introduce-struct-expr_ops-attr_policy.patch
+Patch11:            0011-expr-Enforce-attr_policy-compliance-in-nftnl_expr_se.patch
+Patch12:            0012-chain-Validate-NFTNL_CHAIN_USE-too.patch
+Patch13:            0013-table-Validate-NFTNL_TABLE_USE-too.patch
+Patch14:            0014-flowtable-Validate-NFTNL_FLOWTABLE_SIZE-too.patch
+Patch15:            0015-obj-Validate-NFTNL_OBJ_TYPE-too.patch
+Patch16:            0016-set-Validate-NFTNL_SET_ID-too.patch
+Patch17:            0017-table-Validate-NFTNL_TABLE_OWNER-too.patch
+Patch18:            0018-obj-Do-not-call-nftnl_obj_set_data-with-zero-data_le.patch
+Patch19:            0019-obj-synproxy-Use-memcpy-to-handle-potentially-unalig.patch
+Patch20:            0020-utils-Fix-for-wrong-variable-use-in-nftnl_assert_val.patch
+Patch21:            0021-object-getters-take-const-struct.patch
+Patch22:            0022-obj-Return-value-on-setters.patch
+Patch23:            0023-obj-Repurpose-struct-obj_ops-max_attr-field.patch
+Patch24:            0024-obj-Call-obj_ops-set-with-legal-attributes-only.patch
+Patch25:            0025-obj-Introduce-struct-obj_ops-attr_policy.patch
+Patch26:            0026-obj-Enforce-attr_policy-compliance-in-nftnl_obj_set_.patch
+Patch27:            0027-utils-Introduce-and-use-nftnl_set_str_attr.patch
+Patch28:            0028-obj-Respect-data_len-when-setting-attributes.patch
+Patch29:            0029-expr-Respect-data_len-when-setting-attributes.patch
+Patch30:            0030-tests-Fix-objref-test-case.patch
 
 BuildRequires:  libmnl-devel
 BuildRequires:  gcc
@@ -58,6 +87,40 @@ find $RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 %{_includedir}/libnftnl
 
 %changelog
+* Thu May 09 2024 Phil Sutter <psutter@redhat.com> [1.2.6-4.el9]
+- Bump release for side-tag build with fixed libmnl (Phil Sutter) [RHEL-28515]
+
+* Wed May 08 2024 Phil Sutter <psutter@redhat.com> [1.2.6-3.el9]
+- tests: Fix objref test case (Phil Sutter) [RHEL-28515]
+- expr: Respect data_len when setting attributes (Phil Sutter) [RHEL-28515]
+- obj: Respect data_len when setting attributes (Phil Sutter) [RHEL-28515]
+- utils: Introduce and use nftnl_set_str_attr() (Phil Sutter) [RHEL-28515]
+- obj: Enforce attr_policy compliance in nftnl_obj_set_data() (Phil Sutter) [RHEL-28515]
+- obj: Introduce struct obj_ops::attr_policy (Phil Sutter) [RHEL-28515]
+- obj: Call obj_ops::set with legal attributes only (Phil Sutter) [RHEL-28515]
+- obj: Repurpose struct obj_ops::max_attr field (Phil Sutter) [RHEL-28515]
+- obj: Return value on setters (Phil Sutter) [RHEL-28515]
+- object: getters take const struct (Phil Sutter) [RHEL-28515]
+- utils: Fix for wrong variable use in nftnl_assert_validate() (Phil Sutter) [RHEL-28515]
+- obj: synproxy: Use memcpy() to handle potentially unaligned data (Phil Sutter) [RHEL-28515]
+- obj: Do not call nftnl_obj_set_data() with zero data_len (Phil Sutter) [RHEL-28515]
+- table: Validate NFTNL_TABLE_OWNER, too (Phil Sutter) [RHEL-28515]
+- set: Validate NFTNL_SET_ID, too (Phil Sutter) [RHEL-28515]
+- obj: Validate NFTNL_OBJ_TYPE, too (Phil Sutter) [RHEL-28515]
+- flowtable: Validate NFTNL_FLOWTABLE_SIZE, too (Phil Sutter) [RHEL-28515]
+- table: Validate NFTNL_TABLE_USE, too (Phil Sutter) [RHEL-28515]
+- chain: Validate NFTNL_CHAIN_USE, too (Phil Sutter) [RHEL-28515]
+- expr: Enforce attr_policy compliance in nftnl_expr_set() (Phil Sutter) [RHEL-28515]
+- expr: Introduce struct expr_ops::attr_policy (Phil Sutter) [RHEL-28515]
+- include: Sync nf_log.h with kernel headers (Phil Sutter) [RHEL-28515]
+- expr: Call expr_ops::set with legal types only (Phil Sutter) [RHEL-28515]
+- expr: Repurpose struct expr_ops::max_attr field (Phil Sutter) [RHEL-28515]
+- udata: incorrect userdata buffer size validation (Phil Sutter) [RHEL-28515]
+- obj: ct_timeout: setter checks for timeout array boundaries (Phil Sutter) [RHEL-28515]
+- set_elem: use nftnl_data_cpy() in NFTNL_SET_ELEM_{KEY,KEY_END,DATA} (Phil Sutter) [RHEL-28515]
+- set: buffer overflow in NFTNL_SET_DESC_CONCAT setter (Phil Sutter) [RHEL-28515]
+- expr: fix buffer overflows in data value setters (Phil Sutter) [RHEL-28515]
+
 * Fri Oct 27 2023 Phil Sutter <psutter@redhat.com> [1.2.6-2.el9]
 - spec: Avoid variable name clash, add missing dist tag (Phil Sutter) [RHEL-14149]
 
