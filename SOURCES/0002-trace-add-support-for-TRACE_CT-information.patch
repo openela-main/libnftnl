@@ -1,0 +1,153 @@
+From 486a9c5ed53e3f1bea1bc4b8668eefa9453e1aa8 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 15 Jul 2025 20:42:30 +0200
+Subject: [PATCH] trace: add support for TRACE_CT information
+
+JIRA: https://issues.redhat.com/browse/RHEL-103864
+Upstream Status: libnftnl commit 56e37303ed30a4f9b73ec1f90b53da7dda645748
+
+commit 56e37303ed30a4f9b73ec1f90b53da7dda645748
+Author: Florian Westphal <fw@strlen.de>
+Date:   Thu May 22 15:51:15 2025 +0200
+
+    trace: add support for TRACE_CT information
+
+    Decode direction/id/state/status information.
+    This will be used by 'nftables monitor trace' to print a packets
+    conntrack state.
+
+    Signed-off-by: Florian Westphal <fw@strlen.de>
+    Reviewed-by: Pablo Neira Ayuso <pablo@netfilter.org>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ include/libnftnl/trace.h            |  4 +++
+ include/linux/netfilter/nf_tables.h |  8 +++++
+ src/trace.c                         | 46 +++++++++++++++++++++++++++++
+ 3 files changed, 58 insertions(+)
+
+diff --git a/include/libnftnl/trace.h b/include/libnftnl/trace.h
+index 18ab0c3..5d66b50 100644
+--- a/include/libnftnl/trace.h
++++ b/include/libnftnl/trace.h
+@@ -28,6 +28,10 @@ enum nftnl_trace_attr {
+ 	NFTNL_TRACE_VERDICT,
+ 	NFTNL_TRACE_NFPROTO,
+ 	NFTNL_TRACE_POLICY,
++	NFTNL_TRACE_CT_DIRECTION,
++	NFTNL_TRACE_CT_ID,
++	NFTNL_TRACE_CT_STATE,
++	NFTNL_TRACE_CT_STATUS,
+ 	__NFTNL_TRACE_MAX,
+ };
+ #define NFTNL_TRACE_MAX (__NFTNL_TRACE_MAX - 1)
+diff --git a/include/linux/netfilter/nf_tables.h b/include/linux/netfilter/nf_tables.h
+index c48b193..2c9f833 100644
+--- a/include/linux/netfilter/nf_tables.h
++++ b/include/linux/netfilter/nf_tables.h
+@@ -1797,6 +1797,10 @@ enum nft_xfrm_keys {
+  * @NFTA_TRACE_MARK: nfmark (NLA_U32)
+  * @NFTA_TRACE_NFPROTO: nf protocol processed (NLA_U32)
+  * @NFTA_TRACE_POLICY: policy that decided fate of packet (NLA_U32)
++ * @NFTA_TRACE_CT_ID: conntrack id (NLA_U32)
++ * @NFTA_TRACE_CT_DIRECTION: packets direction (NLA_U8)
++ * @NFTA_TRACE_CT_STATUS: conntrack status (NLA_U32)
++ * @NFTA_TRACE_CT_STATE: packet state (new, established, ...) (NLA_U32)
+  */
+ enum nft_trace_attributes {
+ 	NFTA_TRACE_UNSPEC,
+@@ -1817,6 +1821,10 @@ enum nft_trace_attributes {
+ 	NFTA_TRACE_NFPROTO,
+ 	NFTA_TRACE_POLICY,
+ 	NFTA_TRACE_PAD,
++	NFTA_TRACE_CT_ID,
++	NFTA_TRACE_CT_DIRECTION,
++	NFTA_TRACE_CT_STATUS,
++	NFTA_TRACE_CT_STATE,
+ 	__NFTA_TRACE_MAX
+ };
+ #define NFTA_TRACE_MAX (__NFTA_TRACE_MAX - 1)
+diff --git a/src/trace.c b/src/trace.c
+index f426437..26bf8d7 100644
+--- a/src/trace.c
++++ b/src/trace.c
+@@ -48,6 +48,12 @@ struct nftnl_trace {
+ 	uint32_t policy;
+ 	uint16_t iiftype;
+ 	uint16_t oiftype;
++	struct {
++		uint16_t dir;
++		uint32_t id;
++		uint32_t state;
++		uint32_t status;
++	} ct;
+ 
+ 	uint32_t flags;
+ };
+@@ -92,6 +98,10 @@ static int nftnl_trace_parse_attr_cb(const struct nlattr *attr, void *data)
+                 if (mnl_attr_validate(attr, MNL_TYPE_NESTED) < 0)
+ 			abi_breakage();
+ 		break;
++	case NFTA_TRACE_CT_DIRECTION:
++		if (mnl_attr_validate(attr, MNL_TYPE_U8) < 0)
++			abi_breakage();
++		break;
+ 	case NFTA_TRACE_IIFTYPE:
+ 	case NFTA_TRACE_OIFTYPE:
+ 		if (mnl_attr_validate(attr, MNL_TYPE_U16) < 0)
+@@ -104,6 +114,9 @@ static int nftnl_trace_parse_attr_cb(const struct nlattr *attr, void *data)
+ 	case NFTA_TRACE_POLICY:
+ 	case NFTA_TRACE_NFPROTO:
+ 	case NFTA_TRACE_TYPE:
++	case NFTA_TRACE_CT_ID:
++	case NFTA_TRACE_CT_STATE:
++	case NFTA_TRACE_CT_STATUS:
+ 		if (mnl_attr_validate(attr, MNL_TYPE_U32) < 0)
+ 			abi_breakage();
+ 		break;
+@@ -194,6 +207,18 @@ const void *nftnl_trace_get_data(const struct nftnl_trace *trace,
+ 	case NFTNL_TRACE_POLICY:
+ 		*data_len = sizeof(uint32_t);
+ 		return &trace->policy;
++	case NFTNL_TRACE_CT_DIRECTION:
++		*data_len = sizeof(uint16_t);
++		return &trace->ct.dir;
++	case NFTNL_TRACE_CT_ID:
++		*data_len = sizeof(uint32_t);
++		return &trace->ct.id;
++	case NFTNL_TRACE_CT_STATE:
++		*data_len = sizeof(uint32_t);
++		return &trace->ct.state;
++	case NFTNL_TRACE_CT_STATUS:
++		*data_len = sizeof(uint32_t);
++		return &trace->ct.status;
+ 	case __NFTNL_TRACE_MAX:
+ 		break;
+ 	}
+@@ -423,5 +448,26 @@ int nftnl_trace_nlmsg_parse(const struct nlmsghdr *nlh, struct nftnl_trace *t)
+ 		t->flags |= (1 << NFTNL_TRACE_MARK);
+ 	}
+ 
++	if (tb[NFTA_TRACE_CT_DIRECTION]) {
++		t->ct.dir = mnl_attr_get_u8(tb[NFTA_TRACE_CT_DIRECTION]);
++		t->flags |= (1 << NFTNL_TRACE_CT_DIRECTION);
++	}
++
++	if (tb[NFTA_TRACE_CT_ID]) {
++		/* NFT_CT_ID is expected to be in big endian */
++		t->ct.id = mnl_attr_get_u32(tb[NFTA_TRACE_CT_ID]);
++		t->flags |= (1 << NFTNL_TRACE_CT_ID);
++	}
++
++	if (tb[NFTA_TRACE_CT_STATE]) {
++		t->ct.state = ntohl(mnl_attr_get_u32(tb[NFTA_TRACE_CT_STATE]));
++		t->flags |= (1 << NFTNL_TRACE_CT_STATE);
++	}
++
++	if (tb[NFTA_TRACE_CT_STATUS]) {
++		t->ct.status = ntohl(mnl_attr_get_u32(tb[NFTA_TRACE_CT_STATUS]));
++		t->flags |= (1 << NFTNL_TRACE_CT_STATUS);
++	}
++
+ 	return 0;
+ }
