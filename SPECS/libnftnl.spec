@@ -1,6 +1,6 @@
 Name:           libnftnl
 Version:        1.2.8
-Release:        3%{?dist}
+Release:        4%{?dist}
 Summary:        Library for low-level interaction with nftables Netlink's API over libmnl
 License:        GPL-2.0-or-later
 URL:            https://netfilter.org/projects/libnftnl/
@@ -8,6 +8,7 @@ Source0:        %{url}/files/%{name}-%{version}.tar.xz
 
 Patch1:             0001-set-Fix-for-array-overrun-when-setting-NFTNL_SET_DES.patch
 Patch2:             0002-trace-add-support-for-TRACE_CT-information.patch
+Patch3:             0003-udata-Introduce-NFTNL_UDATA_TABLE_NFT-VER-BLD.patch
 
 BuildRequires:  libmnl-devel
 BuildRequires:  gcc
@@ -56,6 +57,9 @@ find $RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 %{_includedir}/libnftnl
 
 %changelog
+* Wed Sep 10 2025 Phil Sutter <psutter@redhat.com> [1.2.8-4.el10]
+- udata: Introduce NFTNL_UDATA_TABLE_NFT{VER,BLD} (Phil Sutter) [RHEL-113823]
+
 * Tue Jul 15 2025 Phil Sutter <psutter@redhat.com> [1.2.8-3.el10]
 - trace: add support for TRACE_CT information (Phil Sutter) [RHEL-103864]
 

@@ -1,0 +1,37 @@
+From 775bf5eba066f61c7737d6995f276765f76328d9 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 10 Sep 2025 17:29:07 +0200
+Subject: [PATCH] udata: Introduce NFTNL_UDATA_TABLE_NFT{VER,BLD}
+
+JIRA: https://issues.redhat.com/browse/RHEL-113823
+Upstream Status: libnftnl commit eb8fb569c501dc088dc950061369102687f8d2a5
+
+commit eb8fb569c501dc088dc950061369102687f8d2a5
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Tue Aug 12 18:47:14 2025 +0200
+
+    udata: Introduce NFTNL_UDATA_TABLE_NFT{VER,BLD}
+
+    Register these table udata types here to avoid accidental overlaps.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+    Acked-by: Pablo Neira Ayuso <pablo@netfilter.org>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ include/libnftnl/udata.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/include/libnftnl/udata.h b/include/libnftnl/udata.h
+index dbf3a60..9b8a3b6 100644
+--- a/include/libnftnl/udata.h
++++ b/include/libnftnl/udata.h
+@@ -11,6 +11,8 @@ extern "C" {
+ 
+ enum nftnl_udata_table_types {
+ 	NFTNL_UDATA_TABLE_COMMENT,
++	NFTNL_UDATA_TABLE_NFTVER,
++	NFTNL_UDATA_TABLE_NFTBLD,
+ 	__NFTNL_UDATA_TABLE_MAX
+ };
+ #define NFTNL_UDATA_TABLE_MAX (__NFTNL_UDATA_TABLE_MAX - 1)
