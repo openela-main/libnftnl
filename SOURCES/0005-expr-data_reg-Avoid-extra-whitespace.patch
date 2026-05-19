@@ -1,0 +1,165 @@
+From 0ded90fadf65fb61f17464ca3c3c50b1592ac77f Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 24 Feb 2026 15:05:32 +0100
+Subject: [PATCH] expr: data_reg: Avoid extra whitespace
+
+JIRA: https://issues.redhat.com/browse/RHEL-119650
+Upstream Status: libnftnl commit 7daf5a4fde637dfc2aee4480c48777b6e5b22aa2
+
+commit 7daf5a4fde637dfc2aee4480c48777b6e5b22aa2
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Wed Oct 15 23:41:36 2025 +0200
+
+    expr: data_reg: Avoid extra whitespace
+
+    Do not append a space to data regs, they may appear at end of line or
+    followed by a tab. Have callers print the space if needed.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/expr/bitwise.c   |  7 +++++--
+ src/expr/cmp.c       |  3 +++
+ src/expr/data_reg.c  | 11 +++++------
+ src/expr/immediate.c |  3 +++
+ src/expr/range.c     |  6 ++++++
+ src/set_elem.c       |  4 ++--
+ 6 files changed, 24 insertions(+), 10 deletions(-)
+
+diff --git a/src/expr/bitwise.c b/src/expr/bitwise.c
+index cac47a5..2da83b7 100644
+--- a/src/expr/bitwise.c
++++ b/src/expr/bitwise.c
+@@ -225,13 +225,16 @@ nftnl_expr_bitwise_snprintf_mask_xor(char *buf, size_t remain,
+ 				      0, DATA_VALUE);
+ 	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+ 
+-	ret = snprintf(buf + offset, remain, ") ^ ");
++	ret = snprintf(buf + offset, remain, " ) ^ ");
+ 	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+ 
+ 	ret = nftnl_data_reg_snprintf(buf + offset, remain, &bitwise->xor,
+ 				      0, DATA_VALUE);
+ 	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+ 
++	ret = snprintf(buf + offset, remain, " ");
++	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
++
+ 	return offset;
+ }
+ 
+@@ -248,7 +251,7 @@ nftnl_expr_bitwise_snprintf_shift(char *buf, size_t remain, const char *op,
+ 				      0, DATA_VALUE);
+ 	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+ 
+-	ret = snprintf(buf + offset, remain, ") ");
++	ret = snprintf(buf + offset, remain, " ) ");
+ 	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+ 
+ 	return offset;
+diff --git a/src/expr/cmp.c b/src/expr/cmp.c
+index 2908f56..ec1dc31 100644
+--- a/src/expr/cmp.c
++++ b/src/expr/cmp.c
+@@ -163,6 +163,9 @@ nftnl_expr_cmp_snprintf(char *buf, size_t remain,
+ 				      0, DATA_VALUE);
+ 	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+ 
++	ret = snprintf(buf + offset, remain, " ");
++	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
++
+ 	return offset;
+ }
+ 
+diff --git a/src/expr/data_reg.c b/src/expr/data_reg.c
+index fd5e0d6..bf4153c 100644
+--- a/src/expr/data_reg.c
++++ b/src/expr/data_reg.c
+@@ -25,15 +25,14 @@ nftnl_data_reg_value_snprintf_default(char *buf, size_t remain,
+ 				      const union nftnl_data_reg *reg,
+ 				      uint32_t flags)
+ {
+-	const char *pfx = flags & DATA_F_NOPFX ? "" : "0x";
++	const char *pfx = flags & DATA_F_NOPFX ? "" : "0x", *sep = "";
+ 	int offset = 0, ret, i;
+ 
+-
+-
+ 	for (i = 0; i < div_round_up(reg->len, sizeof(uint32_t)); i++) {
+ 		ret = snprintf(buf + offset, remain,
+-			       "%s%.8x ", pfx, reg->val[i]);
++			       "%s%s%.8x", sep, pfx, reg->val[i]);
+ 		SNPRINTF_BUFFER_SIZE(ret, remain, offset);
++		sep = " ";
+ 	}
+ 
+ 	return offset;
+@@ -46,11 +45,11 @@ nftnl_data_reg_verdict_snprintf_def(char *buf, size_t size,
+ {
+ 	int remain = size, offset = 0, ret = 0;
+ 
+-	ret = snprintf(buf, size, "%s ", nftnl_verdict2str(reg->verdict));
++	ret = snprintf(buf, size, "%s", nftnl_verdict2str(reg->verdict));
+ 	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+ 
+ 	if (reg->chain != NULL) {
+-		ret = snprintf(buf + offset, remain, "-> %s ", reg->chain);
++		ret = snprintf(buf + offset, remain, " -> %s", reg->chain);
+ 		SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+ 	}
+ 
+diff --git a/src/expr/immediate.c b/src/expr/immediate.c
+index f0e0a78..6dffaf9 100644
+--- a/src/expr/immediate.c
++++ b/src/expr/immediate.c
+@@ -201,6 +201,9 @@ nftnl_expr_immediate_snprintf(char *buf, size_t remain,
+ 		SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+ 	}
+ 
++	ret = snprintf(buf + offset, remain, " ");
++	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
++
+ 	return offset;
+ }
+ 
+diff --git a/src/expr/range.c b/src/expr/range.c
+index 50a8ed0..564d14f 100644
+--- a/src/expr/range.c
++++ b/src/expr/range.c
+@@ -176,10 +176,16 @@ static int nftnl_expr_range_snprintf(char *buf, size_t remain,
+ 				      0, DATA_VALUE);
+ 	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+ 
++	ret = snprintf(buf + offset, remain, " ");
++	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
++
+ 	ret = nftnl_data_reg_snprintf(buf + offset, remain, &range->data_to,
+ 				      0, DATA_VALUE);
+ 	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+ 
++	ret = snprintf(buf + offset, remain, " ");
++	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
++
+ 	return offset;
+ }
+ 
+diff --git a/src/set_elem.c b/src/set_elem.c
+index 1f81e76..60ee5f4 100644
+--- a/src/set_elem.c
++++ b/src/set_elem.c
+@@ -732,12 +732,12 @@ int nftnl_set_elem_snprintf_default(char *buf, size_t remain,
+ 					      DATA_F_NOPFX, dregtype);
+ 		SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+ 	} else if (e->flags & (1 << NFTNL_SET_ELEM_OBJREF)) {
+-		ret = snprintf(buf + offset, remain, " : %s ", e->objref);
++		ret = snprintf(buf + offset, remain, " : %s", e->objref);
+ 		SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+ 	}
+ 
+ 	if (e->set_elem_flags) {
+-		ret = snprintf(buf + offset, remain, "flags %u ", e->set_elem_flags);
++		ret = snprintf(buf + offset, remain, " flags %u", e->set_elem_flags);
+ 		SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+ 	}
+ 

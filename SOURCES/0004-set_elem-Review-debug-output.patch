@@ -1,0 +1,78 @@
+From e0bf0507725f8a778094eac30e51328b6a0ff059 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 24 Feb 2026 15:05:32 +0100
+Subject: [PATCH] set_elem: Review debug output
+
+JIRA: https://issues.redhat.com/browse/RHEL-119650
+Upstream Status: libnftnl commit 5f72061e6e34328ad40e0f1ffd2b8188356bd5f9
+
+commit 5f72061e6e34328ad40e0f1ffd2b8188356bd5f9
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Wed Sep 10 16:22:21 2025 +0200
+
+    set_elem: Review debug output
+
+    * Do not print a colon if no data part is present
+    * Include the object's name for objmap elements
+    * Print flags only if non-zero, but prefixed by 'flags' keyword to avoid
+      confusion with data values
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/set_elem.c | 31 +++++++++++++++++++++----------
+ 1 file changed, 21 insertions(+), 10 deletions(-)
+
+diff --git a/src/set_elem.c b/src/set_elem.c
+index 848adf1..1f81e76 100644
+--- a/src/set_elem.c
++++ b/src/set_elem.c
+@@ -699,7 +699,7 @@ int nftnl_set_elem_parse_file(struct nftnl_set_elem *e, enum nftnl_parse_type ty
+ int nftnl_set_elem_snprintf_default(char *buf, size_t remain,
+ 				    const struct nftnl_set_elem *e)
+ {
+-	int ret, dregtype = DATA_VALUE, offset = 0, i;
++	int ret, dregtype = DATA_NONE, offset = 0, i;
+ 
+ 	ret = snprintf(buf, remain, "element ");
+ 	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+@@ -717,18 +717,29 @@ int nftnl_set_elem_snprintf_default(char *buf, size_t remain,
+ 		SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+ 	}
+ 
+-	ret = snprintf(buf + offset, remain, " : ");
+-	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+-
+-	if (e->flags & (1 << NFTNL_SET_ELEM_VERDICT))
++	if (e->flags & (1 << NFTNL_SET_ELEM_DATA))
++		dregtype = DATA_VALUE;
++	else if (e->flags & (1 << NFTNL_SET_ELEM_CHAIN))
++		dregtype = DATA_CHAIN;
++	else if (e->flags & (1 << NFTNL_SET_ELEM_VERDICT))
+ 		dregtype = DATA_VERDICT;
+ 
+-	ret = nftnl_data_reg_snprintf(buf + offset, remain, &e->data,
+-				      DATA_F_NOPFX, dregtype);
+-	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
++	if (dregtype != DATA_NONE) {
++		ret = snprintf(buf + offset, remain, " : ");
++		SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+ 
+-	ret = snprintf(buf + offset, remain, "%u [end]", e->set_elem_flags);
+-	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
++		ret = nftnl_data_reg_snprintf(buf + offset, remain, &e->data,
++					      DATA_F_NOPFX, dregtype);
++		SNPRINTF_BUFFER_SIZE(ret, remain, offset);
++	} else if (e->flags & (1 << NFTNL_SET_ELEM_OBJREF)) {
++		ret = snprintf(buf + offset, remain, " : %s ", e->objref);
++		SNPRINTF_BUFFER_SIZE(ret, remain, offset);
++	}
++
++	if (e->set_elem_flags) {
++		ret = snprintf(buf + offset, remain, "flags %u ", e->set_elem_flags);
++		SNPRINTF_BUFFER_SIZE(ret, remain, offset);
++	}
+ 
+ 	if (e->user.len) {
+ 		ret = snprintf(buf + offset, remain, "  userdata = { ");

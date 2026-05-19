@@ -1,0 +1,126 @@
+From 6e53b109d8f565bb84b82ac8462959ae60e4b1a0 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 24 Feb 2026 15:06:55 +0100
+Subject: [PATCH] src: Do not include userdata content in debug output
+
+JIRA: https://issues.redhat.com/browse/RHEL-119650
+Upstream Status: libnftnl commit 5c5a8385dc974ea7887119963022ae988e2a16cc
+Conflicts: Context change due to missing nftnl_parse_str_attr() in RHEL.
+
+commit 5c5a8385dc974ea7887119963022ae988e2a16cc
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Jan 29 00:08:27 2026 +0100
+
+    src: Do not include userdata content in debug output
+
+    This storage in rules and set elements is opaque by design, neither
+    libnftnl nor kernel should deal with its content. Yet nftables enters data
+    in host byte order which will lead to changing output depending on
+    host's byte order. Avoid this problem for test suites checking the debug
+    output by merely printing the number and sum of all the bytes in the
+    buffer. This likely detects changes in userdata but deliberately ignores
+    data reordering.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ include/utils.h | 10 ++++++++++
+ src/rule.c      | 19 ++++---------------
+ src/set_elem.c  | 18 ++++--------------
+ 3 files changed, 18 insertions(+), 29 deletions(-)
+
+diff --git a/include/utils.h b/include/utils.h
+index 5a3379f..bfa3336 100644
+--- a/include/utils.h
++++ b/include/utils.h
+@@ -88,4 +88,14 @@ struct nlattr;
+ void nftnl_attr_put_ifname(struct nlmsghdr *nlh, const char *ifname);
+ char *nftnl_attr_get_ifname(const struct nlattr *attr);
+ 
++static inline uint32_t bytesum(uint8_t *buf, size_t buflen)
++{
++	uint32_t ret = 0;
++
++	while (buflen--)
++		ret += buf[buflen];
++
++	return ret;
++}
++
+ #endif
+diff --git a/src/rule.c b/src/rule.c
+index 3948a74..283cac9 100644
+--- a/src/rule.c
++++ b/src/rule.c
+@@ -519,8 +519,8 @@ static int nftnl_rule_snprintf_default(char *buf, size_t remain,
+ 				       uint32_t type, uint32_t flags)
+ {
+ 	struct nftnl_expr *expr;
+-	int ret, offset = 0, i;
+ 	const char *sep = "";
++	int ret, offset = 0;
+ 
+ 	if (r->flags & (1 << NFTNL_RULE_FAMILY)) {
+ 		ret = snprintf(buf + offset, remain, "%s%s", sep,
+@@ -583,21 +583,10 @@ static int nftnl_rule_snprintf_default(char *buf, size_t remain,
+ 	}
+ 
+ 	if (r->user.len) {
+-		ret = snprintf(buf + offset, remain, "\n  userdata = { ");
+-		SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+-
+-		for (i = 0; i < r->user.len; i++) {
+-			char *c = r->user.data;
+-
+-			ret = snprintf(buf + offset, remain,
+-				       isprint(c[i]) ? "%c" : "\\x%02hhx",
+-				       c[i]);
+-			SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+-		}
+-
+-		ret = snprintf(buf + offset, remain, " }");
++		ret = snprintf(buf + offset, remain,
++			       "\n  userdata len %d sum 0x%x",
++			       r->user.len, bytesum(r->user.data, r->user.len));
+ 		SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+-
+ 	}
+ 
+ 	return offset;
+diff --git a/src/set_elem.c b/src/set_elem.c
+index 86b4752..4a092f8 100644
+--- a/src/set_elem.c
++++ b/src/set_elem.c
+@@ -717,7 +717,7 @@ int nftnl_set_elem_parse_file(struct nftnl_set_elem *e, enum nftnl_parse_type ty
+ int nftnl_set_elem_snprintf_default(char *buf, size_t remain,
+ 				    const struct nftnl_set_elem *e)
+ {
+-	int ret, dregtype = DATA_NONE, offset = 0, i;
++	int ret, dregtype = DATA_NONE, offset = 0;
+ 
+ 	ret = snprintf(buf, remain, "element ");
+ 	SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+@@ -760,19 +760,9 @@ int nftnl_set_elem_snprintf_default(char *buf, size_t remain,
+ 	}
+ 
+ 	if (e->user.len) {
+-		ret = snprintf(buf + offset, remain, "  userdata = { ");
+-		SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+-
+-		for (i = 0; i < e->user.len; i++) {
+-			char *c = e->user.data;
+-
+-			ret = snprintf(buf + offset, remain,
+-				       isprint(c[i]) ? "%c" : "\\x%02hhx",
+-				       c[i]);
+-			SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+-		}
+-
+-		ret = snprintf(buf + offset, remain, " }");
++		ret = snprintf(buf + offset, remain,
++			       "  userdata len %d sum 0x%x",
++			       e->user.len, bytesum(e->user.data, e->user.len));
+ 		SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+ 	}
+ 

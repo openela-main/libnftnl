@@ -1,0 +1,72 @@
+From d88565eec1a9c5fde538f00a3591f7f8e8fdec9b Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 24 Feb 2026 15:06:55 +0100
+Subject: [PATCH] data_reg: Respect data byteorder when printing
+
+JIRA: https://issues.redhat.com/browse/RHEL-119650
+Upstream Status: libnftnl commit 84b7adedf98fbf738632d07e585d621588d45500
+
+commit 84b7adedf98fbf738632d07e585d621588d45500
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Wed Sep 10 17:51:55 2025 +0200
+
+    data_reg: Respect data byteorder when printing
+
+    Print data from most significant byte to least significant one. Also
+    print only reg->len bytes of data, not every non-empty u32. Still
+    separate four byte blocks by whitespace, though.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/expr/data_reg.c | 29 +++++++++++++++++++++++------
+ 1 file changed, 23 insertions(+), 6 deletions(-)
+
+diff --git a/src/expr/data_reg.c b/src/expr/data_reg.c
+index d1aadcc..de5d235 100644
+--- a/src/expr/data_reg.c
++++ b/src/expr/data_reg.c
+@@ -20,19 +20,36 @@
+ #include <libnftnl/rule.h>
+ #include "internal.h"
+ 
++static bool big_endian_host(void)
++{
++	uint16_t v = 1;
++
++	return v == htons(v);
++}
++
+ static int
+ nftnl_data_reg_value_snprintf_default(char *buf, size_t remain,
+ 				      const union nftnl_data_reg *reg,
+ 				      uint32_t flags)
+ {
+ 	const char *pfx = flags & DATA_F_NOPFX ? "" : "0x", *sep = "";
+-	int offset = 0, ret, i;
+-
+-	for (i = 0; i < div_round_up(reg->len, sizeof(uint32_t)); i++) {
+-		ret = snprintf(buf + offset, remain,
+-			       "%s%s%.8x", sep, pfx, reg->val[i]);
++	bool reverse = reg->byteorder && !big_endian_host();
++	int offset = 0, ret, i, idx;
++
++	for (i = 0; i < reg->len; i++) {
++		if ((i % 4) == 0) {
++			ret = snprintf(buf + offset, remain, "%s%s", sep, pfx);
++			SNPRINTF_BUFFER_SIZE(ret, remain, offset);
++			sep = " ";
++		}
++		if (reverse)
++			idx = reg->len - i - 1;
++		else
++			idx = i;
++
++		ret = snprintf(buf + offset, remain, "%.2x",
++			       ((uint8_t *)reg->val)[idx]);
+ 		SNPRINTF_BUFFER_SIZE(ret, remain, offset);
+-		sep = " ";
+ 	}
+ 
+ 	return offset;

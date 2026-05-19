@@ -1,14 +1,25 @@
 Name:           libnftnl
-Version:        1.2.8
-Release:        4%{?dist}
+Version:        1.3.0
+Release:        3%{?dist}
 Summary:        Library for low-level interaction with nftables Netlink's API over libmnl
 License:        GPL-2.0-or-later
 URL:            https://netfilter.org/projects/libnftnl/
 Source0:        %{url}/files/%{name}-%{version}.tar.xz
 
-Patch1:             0001-set-Fix-for-array-overrun-when-setting-NFTNL_SET_DES.patch
-Patch2:             0002-trace-add-support-for-TRACE_CT-information.patch
-Patch3:             0003-udata-Introduce-NFTNL_UDATA_TABLE_NFT-VER-BLD.patch
+Patch1:             0001-udata-Introduce-NFTNL_UDATA_TABLE_NFT-VER-BLD.patch
+Patch2:             0002-utils-Add-helpers-for-interface-name-wildcards.patch
+Patch3:             0003-utils-Drop-asterisk-from-end-of-NFTA_DEVICE_PREFIX-s.patch
+Patch4:             0004-set_elem-Review-debug-output.patch
+Patch5:             0005-expr-data_reg-Avoid-extra-whitespace.patch
+Patch6:             0006-expr-Pass-byteorder-to-struct-expr_ops-set-callback.patch
+Patch7:             0007-data_reg-Introduce-struct-nftnl_data_reg-byteorder-f.patch
+Patch8:             0008-data_reg-Introduce-struct-nftnl_data_reg-sizes-array.patch
+Patch9:             0009-Introduce-nftnl_-expr-set_elem-_set_imm.patch
+Patch10:            0010-data_reg-Respect-data-byteorder-when-printing.patch
+Patch11:            0011-data_reg-Support-concatenated-data.patch
+Patch12:            0012-udata-Store-u32-udata-values-in-Big-Endian.patch
+Patch13:            0013-Revert-udata-Store-u32-udata-values-in-Big-Endian.patch
+Patch14:            0014-src-Do-not-include-userdata-content-in-debug-output.patch
 
 BuildRequires:  libmnl-devel
 BuildRequires:  gcc
@@ -57,6 +68,29 @@ find $RPM_BUILD_ROOT -name '*.la' -exec rm -f {} ';'
 %{_includedir}/libnftnl
 
 %changelog
+* Tue Feb 24 2026 Phil Sutter <psutter@redhat.com> [1.3.0-3.el10]
+- src: Do not include userdata content in debug output (Phil Sutter) [RHEL-119650]
+- Revert "udata: Store u32 udata values in Big Endian" (Phil Sutter) [RHEL-119650]
+- udata: Store u32 udata values in Big Endian (Phil Sutter) [RHEL-119650]
+- data_reg: Support concatenated data (Phil Sutter) [RHEL-119650]
+- data_reg: Respect data byteorder when printing (Phil Sutter) [RHEL-119650]
+- Introduce nftnl_{expr,set_elem}_set_imm() (Phil Sutter) [RHEL-119650]
+- data_reg: Introduce struct nftnl_data_reg::sizes array (Phil Sutter) [RHEL-119650]
+- data_reg: Introduce struct nftnl_data_reg::byteorder field (Phil Sutter) [RHEL-119650]
+- expr: Pass byteorder to struct expr_ops::set callback (Phil Sutter) [RHEL-119650]
+- expr: data_reg: Avoid extra whitespace (Phil Sutter) [RHEL-119650]
+- set_elem: Review debug output (Phil Sutter) [RHEL-119650]
+
+* Thu Nov 27 2025 Phil Sutter <psutter@redhat.com> [1.3.0-2.el10]
+- utils: Drop asterisk from end of NFTA_DEVICE_PREFIX strings (Phil Sutter) [RHEL-108860]
+- utils: Add helpers for interface name wildcards (Phil Sutter) [RHEL-108860]
+
+* Thu Nov 20 2025 Phil Sutter <psutter@redhat.com> [1.3.0-1.el10]
+- Rebase onto version 1.3.0 (Phil Sutter) [RHEL-121193]
+
+* Thu Oct 30 2025 Phil Sutter <psutter@redhat.com> [1.2.8-5.el10]
+- Bump release for a side-tag build (Phil Sutter) [RHEL-125122]
+
 * Wed Sep 10 2025 Phil Sutter <psutter@redhat.com> [1.2.8-4.el10]
 - udata: Introduce NFTNL_UDATA_TABLE_NFT{VER,BLD} (Phil Sutter) [RHEL-113823]
 

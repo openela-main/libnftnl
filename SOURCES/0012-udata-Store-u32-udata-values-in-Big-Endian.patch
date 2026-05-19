@@ -1,0 +1,56 @@
+From 787affd697749be3920017a39097c0bdb0354e03 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 24 Feb 2026 15:06:55 +0100
+Subject: [PATCH] udata: Store u32 udata values in Big Endian
+
+JIRA: https://issues.redhat.com/browse/RHEL-119650
+Upstream Status: libnftnl commit f20dfa7824860a9ac14425a3f7ca970a6c981597
+
+commit f20dfa7824860a9ac14425a3f7ca970a6c981597
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Oct 17 18:08:11 2025 +0200
+
+    udata: Store u32 udata values in Big Endian
+
+    Avoid deviation of this data in between different byte orders. Assume
+    that direct callers of nftnl_udata_put() know what they do.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ src/udata.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/udata.c b/src/udata.c
+index a195657..8cf4e7c 100644
+--- a/src/udata.c
++++ b/src/udata.c
+@@ -8,6 +8,7 @@
+ #include <udata.h>
+ #include <utils.h>
+ 
++#include <arpa/inet.h>
+ #include <stdlib.h>
+ #include <stdint.h>
+ #include <string.h>
+@@ -100,7 +101,9 @@ EXPORT_SYMBOL(nftnl_udata_put_u32);
+ bool nftnl_udata_put_u32(struct nftnl_udata_buf *buf, uint8_t type,
+ 			 uint32_t data)
+ {
+-	return nftnl_udata_put(buf, type, sizeof(data), &data);
++	uint32_t data_be = htonl(data);
++
++	return nftnl_udata_put(buf, type, sizeof(data_be), &data_be);
+ }
+ 
+ EXPORT_SYMBOL(nftnl_udata_type);
+@@ -128,7 +131,7 @@ uint32_t nftnl_udata_get_u32(const struct nftnl_udata *attr)
+ 
+ 	memcpy(&data, attr->value, sizeof(data));
+ 
+-	return data;
++	return ntohl(data);
+ }
+ 
+ EXPORT_SYMBOL(nftnl_udata_next);

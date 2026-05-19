@@ -1,0 +1,664 @@
+From 21e7c9d93008b9ded927496a2d6de43ef8e3208a Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 24 Feb 2026 15:05:32 +0100
+Subject: [PATCH] expr: Pass byteorder to struct expr_ops::set callback
+
+JIRA: https://issues.redhat.com/browse/RHEL-119650
+Upstream Status: libnftnl commit 823a26e9557a7b0c8bd4b412ca1a583bbf5533ae
+
+commit 823a26e9557a7b0c8bd4b412ca1a583bbf5533ae
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Wed Oct 1 14:57:36 2025 +0200
+
+    expr: Pass byteorder to struct expr_ops::set callback
+
+    Prepare for storing data reg byteorder, no functional change intended.
+
+    Note the odd case in expr/byteorder.c since there is a local variable
+    with same name already.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ include/expr_ops.h      |  2 +-
+ src/expr.c              | 15 +++++++++++----
+ src/expr/bitwise.c      |  2 +-
+ src/expr/byteorder.c    |  2 +-
+ src/expr/cmp.c          |  2 +-
+ src/expr/connlimit.c    |  2 +-
+ src/expr/counter.c      |  2 +-
+ src/expr/ct.c           |  2 +-
+ src/expr/dup.c          |  5 +++--
+ src/expr/dynset.c       |  2 +-
+ src/expr/exthdr.c       |  2 +-
+ src/expr/fib.c          |  2 +-
+ src/expr/flow_offload.c |  5 +++--
+ src/expr/fwd.c          |  5 +++--
+ src/expr/hash.c         |  2 +-
+ src/expr/immediate.c    |  2 +-
+ src/expr/inner.c        |  2 +-
+ src/expr/last.c         |  5 +++--
+ src/expr/limit.c        |  2 +-
+ src/expr/log.c          |  5 +++--
+ src/expr/lookup.c       |  2 +-
+ src/expr/masq.c         |  2 +-
+ src/expr/match.c        |  2 +-
+ src/expr/meta.c         |  2 +-
+ src/expr/nat.c          |  2 +-
+ src/expr/numgen.c       |  2 +-
+ src/expr/objref.c       |  5 +++--
+ src/expr/osf.c          |  5 +++--
+ src/expr/payload.c      |  2 +-
+ src/expr/queue.c        |  5 +++--
+ src/expr/quota.c        |  5 +++--
+ src/expr/range.c        |  5 +++--
+ src/expr/redir.c        |  2 +-
+ src/expr/reject.c       |  5 +++--
+ src/expr/rt.c           |  2 +-
+ src/expr/socket.c       |  2 +-
+ src/expr/synproxy.c     |  5 +++--
+ src/expr/target.c       |  2 +-
+ src/expr/tproxy.c       |  2 +-
+ src/expr/tunnel.c       |  5 +++--
+ src/expr/xfrm.c         |  2 +-
+ 41 files changed, 77 insertions(+), 57 deletions(-)
+
+diff --git a/include/expr_ops.h b/include/expr_ops.h
+index 6cfb3b5..9c816c0 100644
+--- a/include/expr_ops.h
++++ b/include/expr_ops.h
+@@ -19,7 +19,7 @@ struct expr_ops {
+ 	struct attr_policy *attr_policy;
+ 	void	(*init)(const struct nftnl_expr *e);
+ 	void	(*free)(const struct nftnl_expr *e);
+-	int	(*set)(struct nftnl_expr *e, uint16_t type, const void *data, uint32_t data_len);
++	int	(*set)(struct nftnl_expr *e, uint16_t type, const void *data, uint32_t data_len, uint32_t byteorder);
+ 	const void *(*get)(const struct nftnl_expr *e, uint16_t type, uint32_t *data_len);
+ 	int 	(*parse)(struct nftnl_expr *e, struct nlattr *attr);
+ 	void	(*build)(struct nlmsghdr *nlh, const struct nftnl_expr *e);
+diff --git a/src/expr.c b/src/expr.c
+index 65180d6..d07e733 100644
+--- a/src/expr.c
++++ b/src/expr.c
+@@ -59,9 +59,9 @@ bool nftnl_expr_is_set(const struct nftnl_expr *expr, uint16_t type)
+ 	return expr->flags & (1 << type);
+ }
+ 
+-EXPORT_SYMBOL(nftnl_expr_set);
+-int nftnl_expr_set(struct nftnl_expr *expr, uint16_t type,
+-		   const void *data, uint32_t data_len)
++static int __nftnl_expr_set(struct nftnl_expr *expr, uint16_t type,
++			    const void *data, uint32_t data_len,
++			    uint32_t byteorder)
+ {
+ 	switch(type) {
+ 	case NFTNL_EXPR_NAME:	/* cannot be modified */
+@@ -77,13 +77,20 @@ int nftnl_expr_set(struct nftnl_expr *expr, uint16_t type,
+ 		    expr->ops->attr_policy[type].maxlen < data_len)
+ 			return -1;
+ 
+-		if (expr->ops->set(expr, type, data, data_len) < 0)
++		if (expr->ops->set(expr, type, data, data_len, byteorder) < 0)
+ 			return -1;
+ 	}
+ 	expr->flags |= (1 << type);
+ 	return 0;
+ }
+ 
++EXPORT_SYMBOL(nftnl_expr_set);
++int nftnl_expr_set(struct nftnl_expr *expr, uint16_t type,
++		   const void *data, uint32_t data_len)
++{
++	return __nftnl_expr_set(expr, type, data, data_len, 0);
++}
++
+ EXPORT_SYMBOL(nftnl_expr_set_u8);
+ void
+ nftnl_expr_set_u8(struct nftnl_expr *expr, uint16_t type, uint8_t data)
+diff --git a/src/expr/bitwise.c b/src/expr/bitwise.c
+index 2da83b7..da2b6d2 100644
+--- a/src/expr/bitwise.c
++++ b/src/expr/bitwise.c
+@@ -30,7 +30,7 @@ struct nftnl_expr_bitwise {
+ 
+ static int
+ nftnl_expr_bitwise_set(struct nftnl_expr *e, uint16_t type,
+-		       const void *data, uint32_t data_len)
++		       const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_bitwise *bitwise = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/byteorder.c b/src/expr/byteorder.c
+index 4171d06..baa11a1 100644
+--- a/src/expr/byteorder.c
++++ b/src/expr/byteorder.c
+@@ -27,7 +27,7 @@ struct nftnl_expr_byteorder {
+ 
+ static int
+ nftnl_expr_byteorder_set(struct nftnl_expr *e, uint16_t type,
+-			  const void *data, uint32_t data_len)
++			  const void *data, uint32_t data_len, uint32_t byteorderp)
+ {
+ 	struct nftnl_expr_byteorder *byteorder = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/cmp.c b/src/expr/cmp.c
+index ec1dc31..4bcf2e4 100644
+--- a/src/expr/cmp.c
++++ b/src/expr/cmp.c
+@@ -26,7 +26,7 @@ struct nftnl_expr_cmp {
+ 
+ static int
+ nftnl_expr_cmp_set(struct nftnl_expr *e, uint16_t type,
+-		      const void *data, uint32_t data_len)
++		   const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_cmp *cmp = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/connlimit.c b/src/expr/connlimit.c
+index 02b9ecc..f45129d 100644
+--- a/src/expr/connlimit.c
++++ b/src/expr/connlimit.c
+@@ -23,7 +23,7 @@ struct nftnl_expr_connlimit {
+ 
+ static int
+ nftnl_expr_connlimit_set(struct nftnl_expr *e, uint16_t type,
+-			  const void *data, uint32_t data_len)
++			  const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_connlimit *connlimit = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/counter.c b/src/expr/counter.c
+index 80f21d7..21e641b 100644
+--- a/src/expr/counter.c
++++ b/src/expr/counter.c
+@@ -25,7 +25,7 @@ struct nftnl_expr_counter {
+ 
+ static int
+ nftnl_expr_counter_set(struct nftnl_expr *e, uint16_t type,
+-			  const void *data, uint32_t data_len)
++		       const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_counter *ctr = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/ct.c b/src/expr/ct.c
+index 8f8c2a6..4117eee 100644
+--- a/src/expr/ct.c
++++ b/src/expr/ct.c
+@@ -29,7 +29,7 @@ struct nftnl_expr_ct {
+ 
+ static int
+ nftnl_expr_ct_set(struct nftnl_expr *e, uint16_t type,
+-		       const void *data, uint32_t data_len)
++		  const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_ct *ct = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/dup.c b/src/expr/dup.c
+index d49cdb7..bb0f9c6 100644
+--- a/src/expr/dup.c
++++ b/src/expr/dup.c
+@@ -21,8 +21,9 @@ struct nftnl_expr_dup {
+ 	enum nft_registers	sreg_dev;
+ };
+ 
+-static int nftnl_expr_dup_set(struct nftnl_expr *e, uint16_t type,
+-			      const void *data, uint32_t data_len)
++static int
++nftnl_expr_dup_set(struct nftnl_expr *e, uint16_t type,
++		   const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_dup *dup = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/dynset.c b/src/expr/dynset.c
+index 40f9136..f42eeff 100644
+--- a/src/expr/dynset.c
++++ b/src/expr/dynset.c
+@@ -30,7 +30,7 @@ struct nftnl_expr_dynset {
+ 
+ static int
+ nftnl_expr_dynset_set(struct nftnl_expr *e, uint16_t type,
+-			 const void *data, uint32_t data_len)
++		      const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_dynset *dynset = nftnl_expr_data(e);
+ 	struct nftnl_expr *expr, *next;
+diff --git a/src/expr/exthdr.c b/src/expr/exthdr.c
+index ddebe43..c936ac0 100644
+--- a/src/expr/exthdr.c
++++ b/src/expr/exthdr.c
+@@ -36,7 +36,7 @@ struct nftnl_expr_exthdr {
+ 
+ static int
+ nftnl_expr_exthdr_set(struct nftnl_expr *e, uint16_t type,
+-			  const void *data, uint32_t data_len)
++		      const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_exthdr *exthdr = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/fib.c b/src/expr/fib.c
+index c378f4f..31750da 100644
+--- a/src/expr/fib.c
++++ b/src/expr/fib.c
+@@ -25,7 +25,7 @@ struct nftnl_expr_fib {
+ 
+ static int
+ nftnl_expr_fib_set(struct nftnl_expr *e, uint16_t result,
+-		    const void *data, uint32_t data_len)
++		   const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_fib *fib = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/flow_offload.c b/src/expr/flow_offload.c
+index 5f209a6..adb6986 100644
+--- a/src/expr/flow_offload.c
++++ b/src/expr/flow_offload.c
+@@ -14,8 +14,9 @@ struct nftnl_expr_flow {
+ 	char			*table_name;
+ };
+ 
+-static int nftnl_expr_flow_set(struct nftnl_expr *e, uint16_t type,
+-			       const void *data, uint32_t data_len)
++static int
++nftnl_expr_flow_set(struct nftnl_expr *e, uint16_t type,
++		    const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_flow *flow = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/fwd.c b/src/expr/fwd.c
+index d543e22..5f6a56c 100644
+--- a/src/expr/fwd.c
++++ b/src/expr/fwd.c
+@@ -22,8 +22,9 @@ struct nftnl_expr_fwd {
+ 	uint32_t		nfproto;
+ };
+ 
+-static int nftnl_expr_fwd_set(struct nftnl_expr *e, uint16_t type,
+-				  const void *data, uint32_t data_len)
++static int
++nftnl_expr_fwd_set(struct nftnl_expr *e, uint16_t type,
++		   const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_fwd *fwd = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/hash.c b/src/expr/hash.c
+index 050e4b9..c0cf8d9 100644
+--- a/src/expr/hash.c
++++ b/src/expr/hash.c
+@@ -27,7 +27,7 @@ struct nftnl_expr_hash {
+ 
+ static int
+ nftnl_expr_hash_set(struct nftnl_expr *e, uint16_t type,
+-		    const void *data, uint32_t data_len)
++		    const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_hash *hash = nftnl_expr_data(e);
+ 	switch (type) {
+diff --git a/src/expr/immediate.c b/src/expr/immediate.c
+index 6dffaf9..27ee600 100644
+--- a/src/expr/immediate.c
++++ b/src/expr/immediate.c
+@@ -23,7 +23,7 @@ struct nftnl_expr_immediate {
+ 
+ static int
+ nftnl_expr_immediate_set(struct nftnl_expr *e, uint16_t type,
+-			    const void *data, uint32_t data_len)
++			 const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_immediate *imm = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/inner.c b/src/expr/inner.c
+index 8a56bb3..516cda6 100644
+--- a/src/expr/inner.c
++++ b/src/expr/inner.c
+@@ -35,7 +35,7 @@ static void nftnl_expr_inner_free(const struct nftnl_expr *e)
+ 
+ static int
+ nftnl_expr_inner_set(struct nftnl_expr *e, uint16_t type,
+-		     const void *data, uint32_t data_len)
++		     const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_inner *inner = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/last.c b/src/expr/last.c
+index 427d4b5..ebdaf2a 100644
+--- a/src/expr/last.c
++++ b/src/expr/last.c
+@@ -21,8 +21,9 @@ struct nftnl_expr_last {
+ 	uint32_t	set;
+ };
+ 
+-static int nftnl_expr_last_set(struct nftnl_expr *e, uint16_t type,
+-				const void *data, uint32_t data_len)
++static int
++nftnl_expr_last_set(struct nftnl_expr *e, uint16_t type,
++		    const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_last *last = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/limit.c b/src/expr/limit.c
+index b77b27e..3644497 100644
+--- a/src/expr/limit.c
++++ b/src/expr/limit.c
+@@ -28,7 +28,7 @@ struct nftnl_expr_limit {
+ 
+ static int
+ nftnl_expr_limit_set(struct nftnl_expr *e, uint16_t type,
+-		       const void *data, uint32_t data_len)
++		     const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_limit *limit = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/log.c b/src/expr/log.c
+index d4b53e6..ca3931f 100644
+--- a/src/expr/log.c
++++ b/src/expr/log.c
+@@ -27,8 +27,9 @@ struct nftnl_expr_log {
+ 	const char		*prefix;
+ };
+ 
+-static int nftnl_expr_log_set(struct nftnl_expr *e, uint16_t type,
+-				 const void *data, uint32_t data_len)
++static int
++nftnl_expr_log_set(struct nftnl_expr *e, uint16_t type,
++		   const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_log *log = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/lookup.c b/src/expr/lookup.c
+index 7f85ecc..ddf78a7 100644
+--- a/src/expr/lookup.c
++++ b/src/expr/lookup.c
+@@ -27,7 +27,7 @@ struct nftnl_expr_lookup {
+ 
+ static int
+ nftnl_expr_lookup_set(struct nftnl_expr *e, uint16_t type,
+-			  const void *data, uint32_t data_len)
++		      const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_lookup *lookup = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/masq.c b/src/expr/masq.c
+index da4f437..e0d9eb6 100644
+--- a/src/expr/masq.c
++++ b/src/expr/masq.c
+@@ -24,7 +24,7 @@ struct nftnl_expr_masq {
+ 
+ static int
+ nftnl_expr_masq_set(struct nftnl_expr *e, uint16_t type,
+-		       const void *data, uint32_t data_len)
++		    const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_masq *masq = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/match.c b/src/expr/match.c
+index 2c5bd6b..b7e99b8 100644
+--- a/src/expr/match.c
++++ b/src/expr/match.c
+@@ -32,7 +32,7 @@ struct nftnl_expr_match {
+ 
+ static int
+ nftnl_expr_match_set(struct nftnl_expr *e, uint16_t type,
+-			 const void *data, uint32_t data_len)
++		     const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_match *mt = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/meta.c b/src/expr/meta.c
+index d1ff6c4..6670d03 100644
+--- a/src/expr/meta.c
++++ b/src/expr/meta.c
+@@ -29,7 +29,7 @@ struct nftnl_expr_meta {
+ 
+ static int
+ nftnl_expr_meta_set(struct nftnl_expr *e, uint16_t type,
+-		       const void *data, uint32_t data_len)
++		    const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_meta *meta = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/nat.c b/src/expr/nat.c
+index f7e24cb..89e7f15 100644
+--- a/src/expr/nat.c
++++ b/src/expr/nat.c
+@@ -32,7 +32,7 @@ struct nftnl_expr_nat {
+ 
+ static int
+ nftnl_expr_nat_set(struct nftnl_expr *e, uint16_t type,
+-		      const void *data, uint32_t data_len)
++		   const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_nat *nat = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/numgen.c b/src/expr/numgen.c
+index e3af372..5243d9d 100644
+--- a/src/expr/numgen.c
++++ b/src/expr/numgen.c
+@@ -24,7 +24,7 @@ struct nftnl_expr_ng {
+ 
+ static int
+ nftnl_expr_ng_set(struct nftnl_expr *e, uint16_t type,
+-		  const void *data, uint32_t data_len)
++		  const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_ng *ng = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/objref.c b/src/expr/objref.c
+index 5fe09c2..42cf816 100644
+--- a/src/expr/objref.c
++++ b/src/expr/objref.c
+@@ -28,8 +28,9 @@ struct nftnl_expr_objref {
+ 	} set;
+ };
+ 
+-static int nftnl_expr_objref_set(struct nftnl_expr *e, uint16_t type,
+-				 const void *data, uint32_t data_len)
++static int
++nftnl_expr_objref_set(struct nftnl_expr *e, uint16_t type,
++		      const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_objref *objref = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/osf.c b/src/expr/osf.c
+index 293a814..35a31cf 100644
+--- a/src/expr/osf.c
++++ b/src/expr/osf.c
+@@ -18,8 +18,9 @@ struct nftnl_expr_osf {
+ 	uint32_t		flags;
+ };
+ 
+-static int nftnl_expr_osf_set(struct nftnl_expr *e, uint16_t type,
+-			      const void *data, uint32_t data_len)
++static int
++nftnl_expr_osf_set(struct nftnl_expr *e, uint16_t type,
++		   const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_osf *osf = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/payload.c b/src/expr/payload.c
+index 593b842..476eaab 100644
+--- a/src/expr/payload.c
++++ b/src/expr/payload.c
+@@ -33,7 +33,7 @@ struct nftnl_expr_payload {
+ 
+ static int
+ nftnl_expr_payload_set(struct nftnl_expr *e, uint16_t type,
+-			  const void *data, uint32_t data_len)
++		       const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_payload *payload = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/queue.c b/src/expr/queue.c
+index 0160d5e..f5e3f32 100644
+--- a/src/expr/queue.c
++++ b/src/expr/queue.c
+@@ -22,8 +22,9 @@ struct nftnl_expr_queue {
+ 	uint16_t		flags;
+ };
+ 
+-static int nftnl_expr_queue_set(struct nftnl_expr *e, uint16_t type,
+-				    const void *data, uint32_t data_len)
++static int
++nftnl_expr_queue_set(struct nftnl_expr *e, uint16_t type,
++		     const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_queue *queue = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/quota.c b/src/expr/quota.c
+index 108c87c..6a8dc94 100644
+--- a/src/expr/quota.c
++++ b/src/expr/quota.c
+@@ -22,8 +22,9 @@ struct nftnl_expr_quota {
+ 	uint32_t	flags;
+ };
+ 
+-static int nftnl_expr_quota_set(struct nftnl_expr *e, uint16_t type,
+-				const void *data, uint32_t data_len)
++static int
++nftnl_expr_quota_set(struct nftnl_expr *e, uint16_t type,
++		     const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_quota *quota = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/range.c b/src/expr/range.c
+index 564d14f..cd6d6fb 100644
+--- a/src/expr/range.c
++++ b/src/expr/range.c
+@@ -23,8 +23,9 @@ struct nftnl_expr_range {
+ 	enum nft_range_ops	op;
+ };
+ 
+-static int nftnl_expr_range_set(struct nftnl_expr *e, uint16_t type,
+-				const void *data, uint32_t data_len)
++static int
++nftnl_expr_range_set(struct nftnl_expr *e, uint16_t type,
++		     const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_range *range = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/redir.c b/src/expr/redir.c
+index be38f62..3565d3f 100644
+--- a/src/expr/redir.c
++++ b/src/expr/redir.c
+@@ -24,7 +24,7 @@ struct nftnl_expr_redir {
+ 
+ static int
+ nftnl_expr_redir_set(struct nftnl_expr *e, uint16_t type,
+-			const void *data, uint32_t data_len)
++		     const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_redir *redir = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/reject.c b/src/expr/reject.c
+index 5d8763e..df8f926 100644
+--- a/src/expr/reject.c
++++ b/src/expr/reject.c
+@@ -22,8 +22,9 @@ struct nftnl_expr_reject {
+ 	uint8_t			icmp_code;
+ };
+ 
+-static int nftnl_expr_reject_set(struct nftnl_expr *e, uint16_t type,
+-				    const void *data, uint32_t data_len)
++static int
++nftnl_expr_reject_set(struct nftnl_expr *e, uint16_t type,
++		      const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_reject *reject = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/rt.c b/src/expr/rt.c
+index 4f2e96b..c0d4311 100644
+--- a/src/expr/rt.c
++++ b/src/expr/rt.c
+@@ -22,7 +22,7 @@ struct nftnl_expr_rt {
+ 
+ static int
+ nftnl_expr_rt_set(struct nftnl_expr *e, uint16_t type,
+-		       const void *data, uint32_t data_len)
++		  const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_rt *rt = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/socket.c b/src/expr/socket.c
+index 822ee8b..98a8565 100644
+--- a/src/expr/socket.c
++++ b/src/expr/socket.c
+@@ -23,7 +23,7 @@ struct nftnl_expr_socket {
+ 
+ static int
+ nftnl_expr_socket_set(struct nftnl_expr *e, uint16_t type,
+-		       const void *data, uint32_t data_len)
++		       const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_socket *socket = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/synproxy.c b/src/expr/synproxy.c
+index b5a1fef..ad2f0f0 100644
+--- a/src/expr/synproxy.c
++++ b/src/expr/synproxy.c
+@@ -16,8 +16,9 @@ struct nftnl_expr_synproxy {
+ 	uint32_t	flags;
+ };
+ 
+-static int nftnl_expr_synproxy_set(struct nftnl_expr *e, uint16_t type,
+-				   const void *data, uint32_t data_len)
++static int
++nftnl_expr_synproxy_set(struct nftnl_expr *e, uint16_t type,
++			const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_synproxy *synproxy = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/target.c b/src/expr/target.c
+index 3549456..6b590f5 100644
+--- a/src/expr/target.c
++++ b/src/expr/target.c
+@@ -32,7 +32,7 @@ struct nftnl_expr_target {
+ 
+ static int
+ nftnl_expr_target_set(struct nftnl_expr *e, uint16_t type,
+-			 const void *data, uint32_t data_len)
++		      const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_target *tg = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/tproxy.c b/src/expr/tproxy.c
+index 4cc9125..630dffe 100644
+--- a/src/expr/tproxy.c
++++ b/src/expr/tproxy.c
+@@ -24,7 +24,7 @@ struct nftnl_expr_tproxy {
+ 
+ static int
+ nftnl_expr_tproxy_set(struct nftnl_expr *e, uint16_t type,
+-		      const void *data, uint32_t data_len)
++		      const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_tproxy *tproxy = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/tunnel.c b/src/expr/tunnel.c
+index b51b6c7..bdfbc29 100644
+--- a/src/expr/tunnel.c
++++ b/src/expr/tunnel.c
+@@ -20,8 +20,9 @@ struct nftnl_expr_tunnel {
+ 	enum nft_registers	dreg;
+ };
+ 
+-static int nftnl_expr_tunnel_set(struct nftnl_expr *e, uint16_t type,
+-				 const void *data, uint32_t data_len)
++static int
++nftnl_expr_tunnel_set(struct nftnl_expr *e, uint16_t type,
++		      const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_tunnel *tunnel = nftnl_expr_data(e);
+ 
+diff --git a/src/expr/xfrm.c b/src/expr/xfrm.c
+index ba2107d..d247b74 100644
+--- a/src/expr/xfrm.c
++++ b/src/expr/xfrm.c
+@@ -22,7 +22,7 @@ struct nftnl_expr_xfrm {
+ 
+ static int
+ nftnl_expr_xfrm_set(struct nftnl_expr *e, uint16_t type,
+-		    const void *data, uint32_t data_len)
++		    const void *data, uint32_t data_len, uint32_t byteorder)
+ {
+ 	struct nftnl_expr_xfrm *x = nftnl_expr_data(e);
+ 

@@ -1,4 +1,4 @@
-From 775bf5eba066f61c7737d6995f276765f76328d9 Mon Sep 17 00:00:00 2001
+From 143387be5e15b030381df3ab3970cbc66c35cd48 Mon Sep 17 00:00:00 2001
 From: Phil Sutter <psutter@redhat.com>
 Date: Wed, 10 Sep 2025 17:29:07 +0200
 Subject: [PATCH] udata: Introduce NFTNL_UDATA_TABLE_NFT{VER,BLD}
